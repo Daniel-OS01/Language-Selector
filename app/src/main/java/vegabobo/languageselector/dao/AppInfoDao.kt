@@ -17,7 +17,7 @@ interface AppInfoDao {
     fun insert(aie: AppInfoEntity)
 
     @Insert
-    fun insertAll(vararg aie: AppInfoEntity)
+    fun insertAll(aie: List<AppInfoEntity>)
 
     @Delete
     fun delete(aie: AppInfoEntity)

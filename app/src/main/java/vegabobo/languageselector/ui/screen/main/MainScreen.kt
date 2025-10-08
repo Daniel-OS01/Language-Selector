@@ -2,16 +2,25 @@ package vegabobo.languageselector.ui.screen.main
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,7 +45,7 @@ import vegabobo.languageselector.ui.screen.BaseScreen
 fun MainScreen(
     mainScreenVm: MainScreenVm = hiltViewModel(),
     navigateToAppScreen: (String) -> Unit,
-    navigateToAbout: () -> Unit,
+    navigateToSettings: () -> Unit,
 ) {
     val uiState by mainScreenVm.uiState.collectAsState()
     val sb = remember { SnackbarHostState() }
@@ -109,7 +118,7 @@ fun MainScreen(
                                 onClickToggleDropdown = { mainScreenVm.toggleDropdown() },
                                 onToggleDropdown = { mainScreenVm.toggleDropdown() },
                                 onClickToggleSystemApps = { mainScreenVm.toggleSystemAppsVisibility() },
-                                onClickAbout = { navigateToAbout() }
+                                onClickSettings = { navigateToSettings() }
                             )
                     })
 
@@ -149,5 +158,44 @@ fun MainScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun RowScope.SearchBarActions(
+    isDropdownVisible: Boolean,
+    isShowingSystemApps: Boolean,
+    onClickToggleDropdown: () -> Unit,
+    onToggleDropdown: () -> Unit,
+    onClickToggleSystemApps: () -> Unit,
+    onClickSettings: () -> Unit,
+) {
+    IconButton(onClick = { onClickSettings() }) {
+        Icon(
+            imageVector = Icons.Outlined.Settings,
+            contentDescription = stringResource(id = R.string.settings)
+        )
+    }
+    IconButton(onClick = { onClickToggleDropdown() }) {
+        Icon(
+            imageVector = Icons.Outlined.MoreVert,
+            contentDescription = null
+        )
+    }
+    DropdownMenu(
+        expanded = isDropdownVisible,
+        onDismissRequest = { onToggleDropdown() }
+    ) {
+        DropdownMenuItem(
+            text = {
+                val text =
+                    if (isShowingSystemApps)
+                        stringResource(R.string.show_only_user_apps)
+                    else
+                        stringResource(R.string.show_system_apps)
+                Text(text = text)
+            },
+            onClick = { onClickToggleSystemApps() }
+        )
     }
 }

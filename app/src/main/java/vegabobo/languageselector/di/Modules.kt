@@ -34,4 +34,10 @@ object Modules {
     fun provideAppInfoDb(app: Application): AppInfoDb {
         return Room.databaseBuilder(app, AppInfoDb::class.java, "app-info-db").build()
     }
+
+    @Singleton
+    @Provides
+    fun provideAppInfoDao(appInfoDb: AppInfoDb): vegabobo.languageselector.dao.AppInfoDao {
+        return appInfoDb.appInfoDao()
+    }
 }

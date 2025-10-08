@@ -31,6 +31,7 @@ import androidx.navigation.NavController
 import vegabobo.languageselector.R
 import vegabobo.languageselector.ui.components.SimpleCard
 import vegabobo.languageselector.ui.screen.BaseScreen
+import vegabobo.languageselector.ui.screen.settings.model.UriWrapper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,70 +41,94 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    var showImportDialog by remember { mutableStateOf(false) }
+    var showImportConfirmation by remember { mutableStateOf<UriWrapper?>(null) }
+    var showErrorDialog by remember { mutableStateOf<String?>(null) }
 
-    val exportLauncher =
+    val exportJsonLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             if (it.resultCode == Activity.RESULT_OK) {
-                it.data?.data?.let { uri ->
-                    viewModel.exportSettings(context, uri)
-                }
+                it.data?.data?.let { uri -> viewModel.exportAsJson(context, uri) }
             }
         }
 
-    val importLauncher =
+    val importJsonLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             if (it.resultCode == Activity.RESULT_OK) {
-                it.data?.data?.let { uri ->
-                    viewModel.importSettings(context, uri)
-                }
+                it.data?.data?.let { uri -> showImportConfirmation = UriWrapper(uri, "json") }
+            }
+        }
+
+    val exportXmlLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (it.resultCode == Activity.RESULT_OK) {
+                it.data?.data?.let { uri -> viewModel.exportAsXml(context, uri) }
+            }
+        }
+
+    val importXmlLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (it.resultCode == Activity.RESULT_OK) {
+                it.data?.data?.let { uri -> showImportConfirmation = UriWrapper(uri, "xml") }
             }
         }
 
     LaunchedEffect(uiState) {
-        if (uiState.isExportSuccess) {
-            Toast.makeText(context, R.string.config_exported, Toast.LENGTH_SHORT).show()
-            viewModel.resetState()
-        }
-        if (uiState.isImportSuccess) {
-            Toast.makeText(context, R.string.config_imported, Toast.LENGTH_SHORT).show()
-            viewModel.resetState()
-        }
-        when (uiState.errorType) {
-            ErrorType.IMPORT -> {
-                Toast.makeText(context, R.string.error_importing, Toast.LENGTH_SHORT).show()
+        when (uiState.exportState) {
+            ExportState.SUCCESS -> {
+                Toast.makeText(context, R.string.export_success, Toast.LENGTH_SHORT).show()
                 viewModel.resetState()
             }
-            ErrorType.EXPORT -> {
-                Toast.makeText(context, R.string.error_exporting, Toast.LENGTH_SHORT).show()
-                viewModel.resetState()
+            ExportState.ERROR -> {
+                showErrorDialog = uiState.errorText
             }
-            ErrorType.NONE -> {}
+            else -> {}
         }
     }
 
-    if (showImportDialog) {
+    if (showImportConfirmation != null) {
         AlertDialog(
-            onDismissRequest = { showImportDialog = false },
-            title = { Text(stringResource(id = R.string.import_config)) },
-            text = { Text(stringResource(id = R.string.import_config_dialog)) },
+            onDismissRequest = { showImportConfirmation = null },
+            title = { Text(stringResource(id = R.string.settings)) },
+            text = { Text(stringResource(id = R.string.import_confirmation)) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showImportDialog = false
-                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                            addCategory(Intent.CATEGORY_OPENABLE)
-                            type = "application/json"
+                        val wrapper = showImportConfirmation!!
+                        if (wrapper.type == "json") {
+                            viewModel.importFromJson(context, wrapper.uri)
+                        } else {
+                            viewModel.importFromXml(context, wrapper.uri)
                         }
-                        importLauncher.launch(intent)
+                        showImportConfirmation = null
                     }
                 ) {
                     Text(stringResource(id = R.string.ok))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showImportDialog = false }) {
+                TextButton(onClick = { showImportConfirmation = null }) {
                     Text(stringResource(id = R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showErrorDialog != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showErrorDialog = null
+                viewModel.resetState()
+            },
+            title = { Text(stringResource(id = R.string.error_title)) },
+            text = { Text(showErrorDialog ?: "") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showErrorDialog = null
+                        viewModel.resetState()
+                    }
+                ) {
+                    Text(stringResource(id = R.string.ok))
                 }
             }
         )
@@ -118,33 +143,47 @@ fun SettingsScreen(
                     contentDescription = "Back"
                 )
             }
-        },
-        content = { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                SimpleCard(
-                    title = stringResource(id = R.string.export_config),
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                            addCategory(Intent.CATEGORY_OPENABLE)
-                            type = "application/json"
-                            putExtra(Intent.EXTRA_TITLE, "config.json")
-                        }
-                        exportLauncher.launch(intent)
-                    }
-                )
-                SimpleCard(
-                    title = stringResource(id = R.string.import_config),
-                    onClick = { showImportDialog = true }
-                )
-                SimpleCard(
-                    title = stringResource(id = R.string.about),
-                    onClick = { navController.navigate("about") }
-                )
-            }
         }
-    )
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            SimpleCard(title = stringResource(id = R.string.export_json)) {
+                val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "application/json"
+                    putExtra(Intent.EXTRA_TITLE, viewModel.getFileName("json"))
+                }
+                exportJsonLauncher.launch(intent)
+            }
+            SimpleCard(title = stringResource(id = R.string.import_json)) {
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "application/json"
+                }
+                importJsonLauncher.launch(intent)
+            }
+            SimpleCard(title = stringResource(id = R.string.export_xml)) {
+                val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "text/xml"
+                    putExtra(Intent.EXTRA_TITLE, viewModel.getFileName("xml"))
+                }
+                exportXmlLauncher.launch(intent)
+            }
+            SimpleCard(title = stringResource(id = R.string.import_xml)) {
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "text/xml"
+                }
+                importXmlLauncher.launch(intent)
+            }
+            SimpleCard(
+                title = stringResource(id = R.string.about),
+                onClick = { navController.navigate("about") }
+            )
+        }
+    }
 }

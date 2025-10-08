@@ -94,6 +94,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.gson)
+    implementation(libs.kix.xml)
 
     compileOnly(project(":hidden_api"))
 }

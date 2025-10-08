@@ -34,12 +34,13 @@
     <string name="search_no_results">No results found</string>
     <string name="search_start_typing">Type something to search</string>
 
-    <string name="import_config">Import configuration</string>
-    <string name="export_config">Export configuration</string>
-    <string name="import_config_dialog">Are you sure you want to overwrite your current configuration? This action cannot be undone.</string>
-    <string name="config_imported">Configuration imported successfully</string>
-    <string name="config_exported">Configuration exported successfully</string>
-    <string name="error_importing">Error importing configuration</string>
-    <string name="error_exporting">Error exporting configuration</string>
-    <string name="ok">Ok</string>
+    <string name="export_json">Export as JSON</string>
+    <string name="import_json">Import from JSON</string>
+    <string name="export_xml">Export as XML</string>
+    <string name="import_xml">Import from XML</string>
+    <string name="import_confirmation">Are you sure you want to import this configuration? This will overwrite your current settings.</string>
+    <string name="import_success">Configuration imported successfully.</string>
+    <string name="export_success">Configuration exported successfully.</string>
+    <string name="error_title">An error occurred</string>
+    <string name="ok">OK</string>
 </resources>

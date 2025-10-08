@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Transaction
 
 @Dao
 interface AppInfoDao {
@@ -17,13 +18,19 @@ interface AppInfoDao {
     fun insert(aie: AppInfoEntity)
 
     @Insert
-    fun insertAll(aie: List<AppInfoEntity>)
+    fun insertAll(vararg aie: AppInfoEntity)
 
     @Delete
     fun delete(aie: AppInfoEntity)
 
     @Query("DELETE FROM appinfoentity")
     fun deleteAll(): Int
+
+    @Transaction
+    fun importApps(apps: List<AppInfoEntity>) {
+        deleteAll()
+        insertAll(*apps.toTypedArray())
+    }
 
     //
 

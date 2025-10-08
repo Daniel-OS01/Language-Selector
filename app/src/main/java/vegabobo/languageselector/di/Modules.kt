@@ -29,15 +29,4 @@ object Modules {
         return app.getSharedPreferences(BuildConfig.APPLICATION_ID, Context.MODE_PRIVATE)
     }
 
-    @Singleton
-    @Provides
-    fun provideAppInfoDb(app: Application): AppInfoDb {
-        return Room.databaseBuilder(app, AppInfoDb::class.java, "app-info-db").build()
-    }
-
-    @Singleton
-    @Provides
-    fun provideAppInfoDao(appInfoDb: AppInfoDb): vegabobo.languageselector.dao.AppInfoDao {
-        return appInfoDb.appInfoDao()
-    }
 }

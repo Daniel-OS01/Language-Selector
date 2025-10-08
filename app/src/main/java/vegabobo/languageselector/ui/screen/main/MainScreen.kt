@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -46,6 +45,7 @@ fun MainScreen(
     mainScreenVm: MainScreenVm = hiltViewModel(),
     navigateToAppScreen: (String) -> Unit,
     navigateToSettings: () -> Unit,
+    navigateToAbout: () -> Unit,
 ) {
     val uiState by mainScreenVm.uiState.collectAsState()
     val sb = remember { SnackbarHostState() }
@@ -118,7 +118,8 @@ fun MainScreen(
                                 onClickToggleDropdown = { mainScreenVm.toggleDropdown() },
                                 onToggleDropdown = { mainScreenVm.toggleDropdown() },
                                 onClickToggleSystemApps = { mainScreenVm.toggleSystemAppsVisibility() },
-                                onClickSettings = { navigateToSettings() }
+                                onClickSettings = { navigateToSettings() },
+                                onClickAbout = { navigateToAbout() }
                             )
                     })
 
@@ -169,13 +170,8 @@ fun RowScope.SearchBarActions(
     onToggleDropdown: () -> Unit,
     onClickToggleSystemApps: () -> Unit,
     onClickSettings: () -> Unit,
+    onClickAbout: () -> Unit,
 ) {
-    IconButton(onClick = { onClickSettings() }) {
-        Icon(
-            imageVector = Icons.Outlined.Settings,
-            contentDescription = stringResource(id = R.string.settings)
-        )
-    }
     IconButton(onClick = { onClickToggleDropdown() }) {
         Icon(
             imageVector = Icons.Outlined.MoreVert,
@@ -196,6 +192,14 @@ fun RowScope.SearchBarActions(
                 Text(text = text)
             },
             onClick = { onClickToggleSystemApps() }
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.settings)) },
+            onClick = { onClickSettings() }
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.about)) },
+            onClick = { onClickAbout() }
         )
     }
 }

@@ -34,7 +34,8 @@ fun Navigation() {
         ) {
             MainScreen(
                 navigateToAppScreen = { navController.navigate("$APP_INFO/$it") },
-                navigateToSettings = { navController.navigate(SETTINGS) }
+                navigateToSettings = { navController.navigate(SETTINGS) },
+                navigateToAbout = { navController.navigate(ABOUT) }
             )
         }
 

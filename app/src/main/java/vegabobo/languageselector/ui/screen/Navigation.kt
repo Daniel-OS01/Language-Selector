@@ -6,12 +6,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.compose.runtime.Composable
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import vegabobo.languageselector.ui.screen.Destinations.ABOUT
 import vegabobo.languageselector.ui.screen.Destinations.APP_INFO
 import vegabobo.languageselector.ui.screen.Destinations.HOME

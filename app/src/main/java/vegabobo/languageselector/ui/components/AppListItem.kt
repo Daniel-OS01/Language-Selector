@@ -34,7 +34,7 @@ fun AppListItem(
 ) {
     Row(
         modifier = Modifier
-            .clickable { onClickApp(app.pkg) }
+            .clickable(onClickLabel = stringResource(id = R.string.open)) { onClickApp(app.pkg) }
             .then(modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -30,4 +30,8 @@
     <string name="warning">Aviso</string>
     <string name="warning_system_apps">Selecionar idiomas de aplicativos do sistema não é recomendado, você tem certeza?</string>
     <string name="cancel">Cancelar</string>
+    <string name="search">Pesquisar aplicativos</string>
+    <string name="search_no_results">Nenhum resultado encontrado</string>
+    <string name="search_start_typing">Digite algo para pesquisar</string>
+    <string name="open_app">Abrir %1$s</string>
 </resources>

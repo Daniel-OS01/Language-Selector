@@ -29,4 +29,8 @@
     <string name="warning">警告</string>
     <string name="warning_system_apps">不建议对系统应用选择语言,你确定?</string>
     <string name="cancel">取消</string>
+    <string name="search">搜索应用</string>
+    <string name="search_no_results">未找到结果</string>
+    <string name="search_start_typing">输入内容以搜索</string>
+    <string name="open_app">打开 %1$s</string>
 </resources>

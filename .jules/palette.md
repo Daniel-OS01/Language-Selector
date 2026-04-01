@@ -1,0 +1,3 @@
+## 2024-05-24 - Avoid redundant TalkBack content descriptions in Jetpack Compose
+**Learning:** In Jetpack Compose, setting a `contentDescription` on an `Icon` or `Image` that is inside a clickable container alongside descriptive `Text` causes TalkBack to read the description redundantly (e.g. reading both the icon description and the text). Similarly, a generic description like "app icon" next to an app name adds no value for a screen reader user and creates noise.
+**Action:** Always set `contentDescription = null` on icons or decorative images when their visual information is already conveyed by accompanying text in the same interactive group.

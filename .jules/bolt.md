@@ -1,0 +1,4 @@
+## 2024-04-01 - Avoid string allocations and intermediate lists in Jetpack Compose ViewModels
+
+**Learning:** When sorting and filtering large lists of applications (e.g., in `MainScreenVm.kt` for installed apps), calling `.lowercase()` during search and `.sortedBy` chaining creates unnecessary string allocations and intermediate lists. This is an anti-pattern because the ViewModel handles large lists of installed apps, and sorting/filtering happens repeatedly during UI interactions (like search), causing GC churn.
+**Action:** Use `.contains(query, ignoreCase = true)` for searching. Combine chained `.sortedBy{}` calls into a single `.sortedWith(compareBy(...).thenBy(...))` to eliminate intermediate list generation. Use `String.CASE_INSENSITIVE_ORDER` when sorting strings to avoid `.lowercase()`.

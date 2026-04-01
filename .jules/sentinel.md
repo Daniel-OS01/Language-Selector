@@ -1,0 +1,4 @@
+## 2024-05-14 - Prevent data extraction via Android Backup
+**Vulnerability:** Android application backup enabled (`android:allowBackup="true"` in AndroidManifest.xml)
+**Learning:** Having this setting enabled allows an attacker with physical access or ADB to extract sensitive application data, including shared preferences and internal databases, without requiring root access. Since this app involves Shizuku for root/system level operations and stores settings in Room, this presents a real risk for privilege escalation or sensitive data leakage.
+**Prevention:** Explicitly set `android:allowBackup="false"` in AndroidManifest.xml unless there is a strongly justified functional reason for the app to support backups, and in that case carefully review `android:dataExtractionRules` and `android:fullBackupContent`.

@@ -93,5 +93,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
 
+    testImplementation("junit:junit:4.13.2")
+
     compileOnly(project(":hidden_api"))
 }

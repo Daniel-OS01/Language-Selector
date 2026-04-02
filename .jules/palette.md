@@ -1,0 +1,3 @@
+## 2025-04-02 - Reusable UX/a11y Pattern for Compose Icon+Text Buttons
+**Learning:** For Jetpack Compose components combining `Icon` and `Text` with a generic `clickable` modifier, leaving the `contentDescription` as the text string causes a redundant TalkBack announcement, and omitting `onClickLabel` leads to an unhelpful "Double tap to activate".
+**Action:** When implementing custom Compose button components, explicitly set `contentDescription = null` on the `Icon` since the accompanying `Text` node is naturally read, and use `Modifier.clickable(onClick = { ... }, onClickLabel = text)` to replace the generic announcement with a descriptive action (e.g., "Double tap to Open").

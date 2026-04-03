@@ -1,0 +1,3 @@
+## 2026-04-03 - Jetpack Compose TalkBack Optimizations
+**Learning:** In Jetpack Compose, when an Icon is grouped with a descriptive Text element (like in a Button), providing a `contentDescription` on the Icon creates redundant TalkBack announcements. Additionally, using the generic `clickable` modifier without an `onClickLabel` results in unhelpful default announcements like "Double tap to activate".
+**Action:** Always set `contentDescription = null` for Icons accompanied by descriptive text, and consistently use the `onClickLabel` parameter in `clickable` modifiers to provide contextual action hints (e.g., "Double tap to [action]").

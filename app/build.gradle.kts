@@ -52,6 +52,9 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    lint {
+        disable += "MissingTranslation"
+    }
 }
 
 aboutLibraries {
@@ -94,4 +97,6 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     compileOnly(project(":hidden_api"))
+
+    testImplementation("junit:junit:4.13.2")
 }

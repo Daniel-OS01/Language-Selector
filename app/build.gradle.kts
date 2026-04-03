@@ -95,3 +95,4 @@ dependencies {
 
     compileOnly(project(":hidden_api"))
 }
+dependencies { testImplementation(libs.junit) }

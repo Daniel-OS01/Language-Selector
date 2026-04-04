@@ -1,0 +1,3 @@
+## 2024-05-13 - [List Filtering and Sorting Optimizations]
+**Learning:** In Kotlin (especially Jetpack Compose view models), optimize list filtering and sorting by avoiding `.lowercase()` string allocations. Use `.contains(..., ignoreCase = true)` for searching and `String.CASE_INSENSITIVE_ORDER` when sorting strings. Combine chained `.sortedBy{}` calls into a single `.sortedWith(compareBy(...).thenBy(...))` to eliminate intermediate list generation.
+**Action:** Always check string operations in filtering and sorting to prevent unnecessary memory allocations from repeated lowercasing or intermediate object generation in standard collections.

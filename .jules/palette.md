@@ -1,0 +1,3 @@
+## 2024-04-06 - Redundant Content Descriptions for Accompanied Icons
+**Learning:** Found an accessibility pattern where `contentDescription` string literals were added to decorative icons (e.g. `AppListItem` using `"app icon"`) while descriptive text (e.g., the app name) was immediately adjacent or below. This causes redundant TalkBack announcements which degrade screen reader experience. Adding `onClickLabel` further enhances accessibility by avoiding generic click actions.
+**Action:** Always set `contentDescription = null` for icons accompanied by sufficient descriptive text. Additionally, use `onClickLabel` with `Modifier.clickable` (or similar) to provide context for actions, preventing generic "Double tap to activate" announcements.

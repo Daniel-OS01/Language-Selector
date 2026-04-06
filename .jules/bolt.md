@@ -1,0 +1,3 @@
+## 2024-05-24 - [Avoid lowercase and chained sorting for string filtering]
+**Learning:** In Kotlin (especially Jetpack Compose view models), optimize list filtering and sorting by avoiding `.lowercase()` string allocations. Use `.contains(..., ignoreCase = true)` for searching and `String.CASE_INSENSITIVE_ORDER` when sorting strings. Combine chained `.sortedBy{}` calls into a single `.sortedWith(compareBy(...).thenBy(...))` to eliminate intermediate list generation.
+**Action:** Next time I filter or sort a list of strings, I will use `ignoreCase = true` and `sortedWith` to avoid unnecessary allocations.

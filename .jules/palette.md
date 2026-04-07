@@ -1,0 +1,3 @@
+## 2024-04-07 - Accessibility enhancements for Compose clickables and icons
+**Learning:** Found an accessibility issue pattern specific to this app's components where TalkBack announces generic actions ("Double tap to activate") for `clickable` items instead of descriptive ones (e.g., "Double tap to open [App]"). Also found that icons accompanied by text have redundant `contentDescription`s causing TalkBack to read the same information twice.
+**Action:** Use `onClickLabel` inside `clickable` modifiers to provide contextual action descriptions, and set `contentDescription = null` for decorative icons or icons strictly paired with textual equivalents.

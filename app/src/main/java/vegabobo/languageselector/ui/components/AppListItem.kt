@@ -32,16 +32,17 @@ fun AppListItem(
     app: AppInfo,
     onClickApp: (String) -> Unit
 ) {
+    val openAppLabel = stringResource(id = R.string.open_app, app.name)
     Row(
         modifier = Modifier
-            .clickable { onClickApp(app.pkg) }
+            .clickable(onClickLabel = openAppLabel) { onClickApp(app.pkg) }
             .then(modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Image(
             modifier = Modifier.size(32.dp),
             bitmap = app.icon.toBitmap().asImageBitmap(),
-            contentDescription = "app icon"
+            contentDescription = null
         )
         Spacer(modifier = Modifier.padding(8.dp))
         Column(

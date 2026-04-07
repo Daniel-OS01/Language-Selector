@@ -1,0 +1,3 @@
+## 2024-04-07 - Avoid lowercase() string allocations in Kotlin
+**Learning:** In Kotlin, using `.lowercase()` inside loops, filters, or sorting functions (like `.sortedBy { it.name.lowercase() }`) creates a new String instance for every item, leading to excessive garbage collection and memory overhead, especially for large lists of apps.
+**Action:** Use `String.CASE_INSENSITIVE_ORDER` with `.sortedWith(compareBy(...).thenBy(...))` for sorting and `.contains(query, ignoreCase = true)` for searching. This avoids intermediate collections and eliminates unnecessary string allocations, providing measurable performance improvements on UI list rendering.

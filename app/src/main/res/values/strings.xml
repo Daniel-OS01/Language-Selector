@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">Language Selector</string>
     <string name="app_language">App language</string>
     <string name="system_default">System default</string>
@@ -30,7 +30,7 @@
     <string name="warning_system_apps">Selecting language from system apps is not recommended, are you sure?</string>
     <string name="cancel">Cancel</string>
 
-    <string name="search">Search apps</string>
-    <string name="search_no_results">No results found</string>
-    <string name="search_start_typing">Type something to search</string>
+    <string name="search" tools:ignore="MissingTranslation">Search apps</string>
+    <string name="search_no_results" tools:ignore="MissingTranslation">No apps found</string>
+    <string name="search_start_typing" tools:ignore="MissingTranslation">Type an app name or package</string>
 </resources>

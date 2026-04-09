@@ -59,6 +59,7 @@ aboutLibraries {
 }
 
 dependencies {
+    testImplementation(libs.junit)
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
 

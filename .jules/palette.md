@@ -1,0 +1,3 @@
+## 2024-04-10 - Reduce TalkBack Redundancy in Jetpack Compose
+**Learning:** In Jetpack Compose, when icons (`Image`, `Icon`) are paired directly with descriptive text labels (like in `AppListItem` or `QuickTextButton`), providing a `contentDescription` on the icon results in redundant and repetitive TalkBack announcements (e.g., "App icon, App Name" or "Open, Open"). Setting `contentDescription = null` on the icon element ensures that the screen reader only reads the descriptive text, creating a cleaner and faster accessibility experience.
+**Action:** Always verify if an icon is purely decorative or already explained by adjacent text. If so, set `contentDescription = null` to prevent double-announcing.

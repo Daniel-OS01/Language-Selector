@@ -1,0 +1,3 @@
+## 2024-05-24 - Avoid redundant announcements on Compose Clickable Items
+**Learning:** When applying `.clickable` to rows containing an Image (like an icon) and Text, TalkBack will announce the text, but the `Image` might also be announced if it has a non-null `contentDescription`, leading to redundancy. Additionally, `clickable` default announcement is often a generic "Double tap to activate".
+**Action:** Set `contentDescription = null` on the image/icon when its meaning is clearly conveyed by adjacent text. Additionally, provide an `onClickLabel` parameter (e.g., "Open [App Name]") to `.clickable` to override the generic action text, improving screen reader user clarity.

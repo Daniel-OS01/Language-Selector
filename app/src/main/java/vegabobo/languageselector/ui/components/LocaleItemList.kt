@@ -23,6 +23,8 @@ fun LocaleItemList(
     Box(
         modifier = Modifier
             .combinedClickable(
+                onClickLabel = "Select $itemText",
+                onLongClickLabel = "Pin $itemText",
                 onClick = { onClick() },
                 onLongClick = { onLongClick() }
             )

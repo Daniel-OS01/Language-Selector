@@ -1,0 +1,3 @@
+## 2024-04-14 - Redundant TalkBack Announcements in Composables
+**Learning:** In Jetpack Compose, setting a non-null `contentDescription` on an `Icon` or `Image` that is accompanied by visible `Text` causes TalkBack to read the information twice (e.g., "Settings, Settings"). Additionally, clickable components default to "Double tap to activate", which isn't very descriptive for screen reader users.
+**Action:** Set `contentDescription = null` for icons/images when they are purely decorative or when their meaning is already conveyed by adjacent text. Use `onClickLabel` inside the `clickable` modifier to provide descriptive contextual actions (e.g., "Double tap to open [App Name] settings").

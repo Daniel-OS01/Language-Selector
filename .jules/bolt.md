@@ -1,0 +1,3 @@
+## 2024-05-24 - Kotlin Main UI Thread Optimizations
+**Learning:** In heavily recomposed Android view models like `MainScreenVm.kt`, chaining collection operations (`sortedBy {}.sortedBy {}`) combined with `.lowercase()` allocations directly blocks the main coroutine dispatcher and drops frames when dealing with large lists (e.g., all installed apps).
+**Action:** Use `.sortedWith(compareBy<Type> {...}.thenBy(String.CASE_INSENSITIVE_ORDER) {...})` and `.contains(..., ignoreCase = true)` to avoid triggering intermediate object allocations on hot path filters and sorts. Explicit typing is required on `compareBy` to prevent Kotlin compiler inference errors.

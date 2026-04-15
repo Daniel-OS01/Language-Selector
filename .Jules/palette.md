@@ -1,0 +1,3 @@
+## 2024-05-24 - Removing Redundant Icon contentDescriptions
+**Learning:** In Jetpack Compose, when an icon is used as part of a component that already has an explicit label or readable text (e.g., inside a button with text or next to descriptive text), adding a `contentDescription` to the icon creates redundant announcements for screen reader users (e.g., TalkBack will announce "app icon" followed by the app name). Removing it (`contentDescription = null`) provides a cleaner and less repetitive accessible experience.
+**Action:** When creating composite UI components with icons accompanied by text labels, set the icon's `contentDescription` to `null` to let the text label serve as the sole accessible identifier.

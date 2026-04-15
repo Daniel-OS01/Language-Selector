@@ -1,0 +1,3 @@
+## 2024-10-31 - [Kotlin List Optimization]
+**Learning:** Chained `.sortedBy` calls coupled with string manipulation functions like `.lowercase()` during sorting and filtering generate immense intermediate array allocations and object garbage inside Kotlin view models (specifically noticeable when searching apps lists in MainScreenVm).
+**Action:** Use `.sortedWith(compareBy<Type> { ... }.thenBy(String.CASE_INSENSITIVE_ORDER) { ... })` and use `.contains(..., ignoreCase = true)` rather than forcing string conversions. Always specify the generic type in `compareBy` when combining it with `thenBy` to avoid compiler type inference resolution failures.

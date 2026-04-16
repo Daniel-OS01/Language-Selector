@@ -1,0 +1,3 @@
+## 2024-04-16 - TalkBack Redundancy and onClickLabel in Jetpack Compose
+**Learning:** In Jetpack Compose, when an Icon is visually paired with a Text composable inside a clickable container, setting the `contentDescription` of the Icon to the same text string causes TalkBack to read the text twice. Also, standard `clickable` modifiers just announce "Double tap to activate," which lacks context.
+**Action:** Set `contentDescription = null` on the Icon when there's accompanying descriptive Text in the same container. Use the `onClickLabel` parameter in the `clickable` modifier (e.g., `clickable(onClickLabel = text) { ... }`) to replace the generic activation phrase with a descriptive action, so TalkBack reads "Double tap to [text]."

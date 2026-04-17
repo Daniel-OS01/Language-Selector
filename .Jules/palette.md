@@ -1,0 +1,3 @@
+## 2024-05-24 - Redundant TalkBack announcements for accompanied icons
+**Learning:** For Jetpack Compose accessibility, setting `contentDescription = null` on icons that are accompanied by descriptive text avoids redundant TalkBack announcements. This is crucial when an icon is part of a larger component that already has textual content representing the icon's purpose (e.g., list items, buttons with text, warning dialogs).
+**Action:** When creating or modifying Compose components with icons, check if there is adjacent descriptive text. If there is, explicitly set `contentDescription = null` to streamline screen reader output.

@@ -1,0 +1,3 @@
+## 2024-05-24 - Kotlin Sequence and String Allocations
+**Learning:** In Kotlin (especially when sorting lists in ViewModels for Compose), chained `.sortedBy {}` calls generate multiple intermediate lists, consuming excess memory. Additionally, calling `.lowercase()` on strings within a loop/filter generates a new String instance for every check, putting severe pressure on the Garbage Collector and hurting framerates.
+**Action:** Combine sorting operations using `.sortedWith(compareBy<Type> { ... }.thenBy(String.CASE_INSENSITIVE_ORDER) { ... })` and replace `.lowercase()` string mutations in filters with `.contains(..., ignoreCase = true)`.

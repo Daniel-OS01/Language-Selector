@@ -1,0 +1,3 @@
+## 2024-05-15 - Optimize ViewModels Sort and Filter
+**Learning:** In Kotlin (especially Jetpack Compose view models), optimize list filtering and sorting by avoiding `.lowercase()` string allocations. Use `.contains(..., ignoreCase = true)` for searching and `String.CASE_INSENSITIVE_ORDER` when sorting strings. Combine chained `.sortedBy{}` calls into a single `.sortedWith(compareBy(...).thenBy(...))` to eliminate intermediate list generation.
+**Action:** Always check loop contents, search bars, and filtering flows in ViewModels for expensive `.lowercase()` allocations and intermediate list generations with `sortedBy`.

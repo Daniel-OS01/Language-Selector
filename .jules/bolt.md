@@ -1,0 +1,3 @@
+## 2024-05-19 - [Prevent Unnecessary String Allocations]
+**Learning:** The previous implementation used `.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }` for list sorting and `.lowercase().contains(normalizedQuery)` for filtering list elements. Calling `.lowercase()` on strings repeatedly during collection mapping or sorting can allocate many intermediate, short-lived string objects, causing unnecessary GC pressure.
+**Action:** Instead of `.lowercase()`, use `String.CASE_INSENSITIVE_ORDER` inside `.sortedWith(...)` along with `compareBy{...}.thenBy(...)` to eliminate intermediate strings and sort lists faster. Likewise, use `.contains(..., ignoreCase = true)` rather than `.lowercase().contains(...)` to avoid creating a new string during iterations.

@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">Language Selector</string>
     <string name="app_language">App language</string>
     <string name="system_default">System default</string>
@@ -33,4 +33,8 @@
     <string name="search">Search apps</string>
     <string name="search_no_results">No results found</string>
     <string name="search_start_typing">Type something to search</string>
+
+    <string name="open_app" tools:ignore="MissingTranslation">Open %1$s</string>
+    <string name="select_language" tools:ignore="MissingTranslation">Select language</string>
+    <string name="pin_language" tools:ignore="MissingTranslation">Pin language</string>
 </resources>

@@ -1,0 +1,5 @@
+## 2026-04-25 - Handling Compose Clickable A11y and Android Resource Linting
+**Learning:** When using Jetpack Compose's `clickable` and `combinedClickable` modifiers, TalkBack reads a generic "Double tap to activate" unless explicitly overridden using `onClickLabel` and `onLongClickLabel`. Providing descriptive string resources significantly improves contextual a11y.
+**Learning:** Android lint is aggressive about `MissingTranslation`. When adding new string resources to the default `strings.xml`, ensure to use `tools:ignore="MissingTranslation"` and explicitly define the `xmlns:tools` namespace on the root `<resources>` tag if you are not immediately providing translations for all supported locales.
+**Learning:** The `patch` command creates `.orig` or `.rej` backups in the working directory. If left in an Android `res/values` directory, it causes a `mergeDebugResources` build failure (`The file name must end with .xml`). Always clean up patch artifacts in resource directories.
+**Action:** When adding accessibility string labels, preemptively add `tools:ignore` to prevent lint errors, and ensure all patch leftovers in `res/` are removed before building.

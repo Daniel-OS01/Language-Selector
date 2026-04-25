@@ -125,7 +125,7 @@ fun PreferenceItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(onClickLabel = stringResource(id = R.string.open), onClick = onClick)
             .padding(
                 start = 24.dp,
                 top = 16.dp,

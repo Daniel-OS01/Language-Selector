@@ -84,8 +84,13 @@ class MainScreenVm @Inject constructor(
             if (_uiState.value.operationMode == OperationMode.NONE)
                 loadOperationMode()
             val packageList = getInstalledPackages().map { parseAppInfo(it) }
-            var sortedList =
-                packageList.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
+            // ⚡ Bolt Performance Optimization:
+            // Combines chained sortedBy calls into single sortedWith to avoid intermediate list generation.
+            // Uses String.CASE_INSENSITIVE_ORDER instead of .lowercase() to prevent string allocation per item.
+            var sortedList = packageList.sortedWith(
+                compareBy<AppInfo> { !it.isModified() }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+            )
             _uiState.value.listOfApps.clear()
             _uiState.value.listOfApps.addAll(sortedList)
             if (_uiState.value.searchTextFieldValue.isBlank()) {
@@ -171,9 +176,11 @@ class MainScreenVm @Inject constructor(
                 val queryFiltered = if (normalizedQuery.isEmpty()) {
                     appsSnapshot
                 } else {
+                    // ⚡ Bolt Performance Optimization:
+                    // Uses .contains(..., ignoreCase = true) instead of allocating .lowercase() strings for every item during search iteration
                     appsSnapshot.filter {
-                        it.pkg.lowercase().contains(normalizedQuery) ||
-                                it.name.lowercase().contains(normalizedQuery)
+                        it.pkg.contains(normalizedQuery, ignoreCase = true) ||
+                                it.name.contains(normalizedQuery, ignoreCase = true)
                     }
                 }
 
@@ -257,8 +264,13 @@ class MainScreenVm @Inject constructor(
         val idx = apps.indexOfFirst { it.pkg == updatedAi.pkg }
         if (idx != -1 && updatedAi.labels != apps[idx].labels) {
             apps[idx] = updatedAi
-            val newList = _uiState.value.listOfApps.sortedBy { it.name.lowercase() }
-                .sortedBy { !it.isModified() }.toMutableList()
+            // ⚡ Bolt Performance Optimization:
+            // Combines chained sortedBy calls into single sortedWith to avoid intermediate list generation.
+            // Uses String.CASE_INSENSITIVE_ORDER instead of .lowercase() to prevent string allocation per item.
+            val newList = _uiState.value.listOfApps.sortedWith(
+                compareBy<AppInfo> { !it.isModified() }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+            ).toMutableList()
             _uiState.update {
                 it.copy(
                     listOfApps = newList,

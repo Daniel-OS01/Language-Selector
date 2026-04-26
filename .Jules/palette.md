@@ -1,0 +1,3 @@
+## 2024-04-26 - Redundant TalkBack Announcements for Icons Accompanied by Text
+**Learning:** Found multiple instances where icons (e.g., in `QuickTextButton`, `AppListItem`, `FilterLabel`, `AppInfoScreen`) had descriptive `contentDescription` strings, despite being visually accompanied by descriptive text. This leads to redundant and frustrating announcements for screen reader users (e.g., TalkBack saying 'Done icon... Show System').
+**Action:** When implementing Jetpack Compose UI components, if an icon or image is immediately accompanied by a text label that conveys the same meaning or context, explicitly set `contentDescription = null` to prevent duplicate TalkBack announcements.

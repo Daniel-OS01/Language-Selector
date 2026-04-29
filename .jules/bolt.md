@@ -1,0 +1,3 @@
+## 2024-05-24 - Kotlin list sorting and filtering allocations
+**Learning:** In Jetpack Compose ViewModels or general Kotlin files, chaining `sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }` generates an intermediate list and performs multiple unnecessary string allocations.
+**Action:** Replace multiple `.sortedBy` calls with a single `.sortedWith(compareBy<Type> { ... }.thenBy(String.CASE_INSENSITIVE_ORDER) { ... })`. For search filtering, use `.contains(query, ignoreCase = true)` instead of `item.lowercase().contains(query.lowercase())` to prevent high-frequency string allocations on the UI thread.

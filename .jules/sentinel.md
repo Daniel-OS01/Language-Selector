@@ -1,0 +1,4 @@
+## 2024-05-24 - Prevent Device-to-Device Backup Extraction on Android 12+
+**Vulnerability:** Application sandbox data could be extracted on newer Android versions because setting `android:allowBackup="false"` in the Manifest is insufficient to prevent Device-to-Device (D2D) transfers on API 31+.
+**Learning:** To securely and completely disable backups and data extraction, you must explicitly use the `<data-extraction-rules>` mechanism introduced in Android 12. You must exclude all paths/domains for both `<cloud-backup>` and `<device-transfer>`. Additionally, `<exclude>` tags in backup rules require the `path` attribute (e.g., `path="."`).
+**Prevention:** When assessing data export and backup security, verify both the `AndroidManifest.xml` attributes and the associated XML extraction/backup rules, paying special attention to `<device-transfer>` for API 31+.

@@ -1,0 +1,3 @@
+## 2024-05-01 - Avoid String Allocations in Kotlin Collections
+**Learning:** In Kotlin, chaining `.sortedBy {}` calls results in multiple sorting passes and intermediate list allocations. Furthermore, calling `.lowercase()` on strings during large collection iterations (like list filtering or sorting) causes expensive and unnecessary string allocations.
+**Action:** Use `.sortedWith(compareBy(...).thenBy(...))` to combine multiple sorting criteria into a single pass. For case-insensitive string operations, use `String.CASE_INSENSITIVE_ORDER` for sorting and `.contains(..., ignoreCase = true)` for searching to avoid intermediate `.lowercase()` string allocations.

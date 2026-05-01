@@ -20,18 +20,16 @@ import vegabobo.languageselector.R
 fun LocaleItemList(
     itemText: String,
     isPinned: Boolean = false,
-    onLongClick: (() -> Unit)? = null,
+    onLongClick: () -> Unit = {},
     onClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .combinedClickable(
                 onClickLabel = stringResource(id = R.string.open),
-                onLongClickLabel = if (onLongClick != null) {
-                    if (isPinned) stringResource(id = R.string.unpin) else stringResource(id = R.string.pin)
-                } else null,
+                onLongClickLabel = if (isPinned) stringResource(id = R.string.unpin) else stringResource(id = R.string.pin),
                 onClick = { onClick() },
-                onLongClick = onLongClick
+                onLongClick = { onLongClick() }
             )
             .fillMaxWidth()
             .height(72.dp)

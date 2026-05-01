@@ -18,6 +18,8 @@
     <string name="proceed">Proceed</string>
     <string name="pinned_ok">%1$s pinned</string>
     <string name="unpinned">%1$s unpinned</string>
+    <string name="pin" translatable="false">Pin</string>
+    <string name="unpin" translatable="false">Unpin</string>
     <string name="about">About</string>
     <string name="deps_libs">Dependencies and libraries:</string>
     <string name="version">version %1$s (%2$s)</string>

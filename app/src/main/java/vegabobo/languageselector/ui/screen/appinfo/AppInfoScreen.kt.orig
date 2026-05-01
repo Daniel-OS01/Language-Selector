@@ -179,7 +179,7 @@ fun AppInfoScreen(
 
                 item { Title(stringResource(R.string.user_languages)) }
                 item {
-                    LocaleItemList(itemText = stringResource(R.string.system_default), onClick = { appInfoVm.onClickResetLang() })
+                    LocaleItemList(stringResource(R.string.system_default)) { appInfoVm.onClickResetLang() }
                 }
                 items(uiState.listOfSuggestedLanguages.size) { index ->
                     val thisLanguage = uiState.listOfSuggestedLanguages[index]

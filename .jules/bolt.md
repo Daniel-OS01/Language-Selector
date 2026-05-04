@@ -1,0 +1,4 @@
+
+## 2024-05-24 - Avoiding String Allocations in Kotlin Collections
+**Learning:** Chaining `.sortedBy` calls with string manipulations like `.lowercase()` or `.uppercase()` causes intermediate list generation and allocates a new string for every single element on every single sort operation, increasing GC pressure and degrading performance, especially on Android with list UIs. Similarly, using `.lowercase()` on both query and list elements during a `.filter` block creates large amounts of short-lived strings.
+**Action:** When filtering, use `.contains(..., ignoreCase = true)` rather than converting strings. When sorting strings case-insensitively, use `String.CASE_INSENSITIVE_ORDER` inside `.sortedWith(compareBy(...).thenBy(...))` to sort efficiently in a single pass without extra string allocations.

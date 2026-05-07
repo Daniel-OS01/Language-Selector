@@ -1,0 +1,4 @@
+## 2024-05-07 - Insecure Android Backup Configuration
+**Vulnerability:** The application was configured with `android:allowBackup="true"` and had empty/commented out `data_extraction_rules.xml` and `backup_rules.xml` files.
+**Learning:** For Android 12+ (API 31+), `android:allowBackup="false"` is ignored for device-to-device transfers. To securely prevent sensitive data extraction via backups or device transfers, developers must explicitly use `<exclude>` for all domains (root, file, database, sharedpref, external) in both `<cloud-backup>` and `<device-transfer>` inside `data_extraction_rules.xml`, and similarly in `backup_rules.xml`.
+**Prevention:** Always set `android:allowBackup="false"` and explicitly configure extraction rules to `<exclude>` all domains in Android 12+ targeting applications to prevent unintentional data exposure during backups and migrations.

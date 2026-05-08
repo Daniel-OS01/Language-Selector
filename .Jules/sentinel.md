@@ -1,0 +1,4 @@
+## 2026-05-08 - Disabling Android Backup Completely
+**Vulnerability:** The application was allowing system backups which could result in sensitive data extraction because `android:allowBackup="true"` and the backup rules didn't exclude domains.
+**Learning:** Setting `android:allowBackup="false"` is insufficient on Android 12+ (API 31+) as it is ignored for device-to-device transfers. You must retain `android:dataExtractionRules` and explicitly `<exclude>` all domains (root, file, database, sharedpref, external) under both `<cloud-backup>` and `<device-transfer>` in `data_extraction_rules.xml`, and apply the same `<exclude>` rules under `<full-backup-content>` in `backup_rules.xml`.
+**Prevention:** When disabling backup, ensure all domains are explicitly excluded in both `data_extraction_rules.xml` and `backup_rules.xml`.

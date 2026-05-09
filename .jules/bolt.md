@@ -1,0 +1,3 @@
+## 2024-05-09 - Avoid string allocations in list sorting and filtering
+**Learning:** In Kotlin (especially within Android ViewModel workflows handling app lists), chaining `.sortedBy { it.name.lowercase() }` and using `.lowercase()` on string properties during `.filter` operations creates unnecessary short-lived String allocations for every item in the list on every operation. This can lead to frequent garbage collection and stuttering.
+**Action:** Use `.sortedWith(compareBy(...).thenBy(String.CASE_INSENSITIVE_ORDER) { ... })` for case-insensitive sorting without creating new strings. In filtering logic, prefer `string.contains(substring, ignoreCase = true)` rather than converting both strings to `.lowercase()` before comparison.

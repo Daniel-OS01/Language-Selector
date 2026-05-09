@@ -17,6 +17,7 @@
     <string name="shizuku_required">This app requires Shizuku, please install and start Shizuku, after granting Shizuku permissions to this app, you can proceed.</string>
     <string name="proceed">Proceed</string>
     <string name="pinned_ok">%1$s pinned</string>
+    <string name="pin_or_unpin">Pin or unpin</string>
     <string name="unpinned">%1$s unpinned</string>
     <string name="about">About</string>
     <string name="deps_libs">Dependencies and libraries:</string>

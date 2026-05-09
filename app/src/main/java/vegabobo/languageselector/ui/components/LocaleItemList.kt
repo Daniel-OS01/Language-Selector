@@ -12,6 +12,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import vegabobo.languageselector.R
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -23,6 +25,8 @@ fun LocaleItemList(
     Box(
         modifier = Modifier
             .combinedClickable(
+                onClickLabel = stringResource(id = R.string.open),
+                onLongClickLabel = stringResource(id = R.string.pin_or_unpin),
                 onClick = { onClick() },
                 onLongClick = { onLongClick() }
             )

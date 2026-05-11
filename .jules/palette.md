@@ -1,0 +1,3 @@
+## 2024-05-11 - Remove redundant TalkBack announcements
+**Learning:** In Jetpack Compose, state-indicating icons (like checkmarks in FilterChip) and purely decorative or visually accompanied images (like app icons in lists with text labels) should have `contentDescription = null`. Setting string descriptions like "Done icon" or "app icon" creates redundant noise for screen reader users when the surrounding component already announces the state or context.
+**Action:** Always verify if an icon or image adds semantic value that isn't already conveyed by its parent layout or sibling text. If it doesn't, explicitly set `contentDescription = null`.

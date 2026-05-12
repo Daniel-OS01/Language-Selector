@@ -1,0 +1,3 @@
+## 2024-05-15 - [Jetpack Compose Redundant Annoucements]
+**Learning:** In Jetpack Compose, when adding icons next to informative text (like an App icon next to App Name) or when using components that inherently indicate their state (like `FilterChip` showing selection with a checkmark), setting a `contentDescription` on the icon creates redundant TalkBack announcements. Also, simple `clickable` modifiers default to generic "Double tap to activate" unless provided an explicit `onClickLabel`.
+**Action:** Always set `contentDescription = null` for decorative icons or icons accompanied by descriptive text/stateful components. For custom click interactions, pass an explicit `onClickLabel` to `clickable` to give context (e.g., "Double tap to open").

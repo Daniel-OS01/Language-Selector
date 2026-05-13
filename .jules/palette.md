@@ -1,0 +1,3 @@
+## 2024-05-13 - Jetpack Compose FilterChip Accessibility
+**Learning:** Components that inherently announce their state (like `FilterChip` for selection) should have `contentDescription = null` for their internal state-indicating icons (e.g., a checkmark) to prevent redundant TalkBack announcements.
+**Action:** Always set `contentDescription = null` for icons inside Compose elements that already express their state to screen readers.

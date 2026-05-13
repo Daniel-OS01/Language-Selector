@@ -1,0 +1,3 @@
+## 2024-05-13 - Chained sortedBy and lowercase() optimization
+**Learning:** The previous implementation used `sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }`. This was inefficient as it created an intermediate list for the first sort, and `.lowercase()` allocated a new string for every single item during the sort comparison. Additionally, the same issue occurred in filtering with `.lowercase()`.
+**Action:** Combined chained `.sortedBy{}` calls into a single `.sortedWith(compareBy(...).thenBy(...))` to eliminate intermediate list generation. Used `String.CASE_INSENSITIVE_ORDER` for case-insensitive sorting instead of `.lowercase()`. For filtering, used `.contains(..., ignoreCase = true)` to avoid allocating new lowercase strings for every item.

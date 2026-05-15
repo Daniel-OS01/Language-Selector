@@ -1,0 +1,3 @@
+## 2024-05-15 - Redundant TalkBack announcements for decorative/state icons
+**Learning:** Decorative icons accompanying descriptive text (like app icons next to app names, or icons in a button that also contains text) and inherent state-indicating icons (like a checkmark in a `FilterChip`) should have `contentDescription = null`. Otherwise, TalkBack redundantly announces "Done icon", "app icon", etc., cluttering the screen reader experience.
+**Action:** Always set `contentDescription = null` for decorative icons and icons that merely visually represent state that is already conveyed by the component's semantics or accompanying text.

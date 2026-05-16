@@ -1,0 +1,3 @@
+## 2024-03-05 - Avoid Unnecessary String Allocations and Intermediate Lists
+**Learning:** In Kotlin (especially Jetpack Compose view models), string allocations during `.lowercase()` can be expensive when used inside filter or sort loops over large collections. Also, chaining `.sortedBy{}` creates multiple intermediate lists, increasing memory pressure.
+**Action:** Use `.contains(..., ignoreCase = true)` for searching instead of converting both strings to lowercase. Use `String.CASE_INSENSITIVE_ORDER` when sorting strings. Combine chained `.sortedBy{}` calls into a single `.sortedWith(compareBy(...).thenBy(...))` to eliminate intermediate list generation.

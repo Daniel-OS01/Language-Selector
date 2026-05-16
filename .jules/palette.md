@@ -1,0 +1,3 @@
+## 2024-05-16 - Prevent redundant screen reader announcements
+**Learning:** Adding a generic `contentDescription` to visual icons that are immediately accompanied by descriptive text or a label within the same UI context leads to redundant and annoying double-announcements for TalkBack users. Also, components that inherently announce their state (like `FilterChip` for selection) shouldn't describe their internal state-indicating icons.
+**Action:** Always set `contentDescription = null` for an image or icon when it is purely decorative, accompanied by a descriptive label in the same composable, or within a component that already handles the accessibility state announcements.

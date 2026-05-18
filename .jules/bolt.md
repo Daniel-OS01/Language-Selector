@@ -1,0 +1,3 @@
+## 2024-05-24 - Avoid Chained Sorts and String Lowercasing Allocations
+**Learning:** Chaining `.sortedBy` calls in Kotlin creates intermediate list allocations which can be expensive, and utilizing `.lowercase()` on string parameters for searching/sorting creates unnecessary garbage string allocations per execution.
+**Action:** Always combine chained sorting into a single `.sortedWith(compareBy(...).thenBy(...))` statement. For case-insensitive string operations, avoid `.lowercase()` by using `.contains(..., ignoreCase = true)` and `String.CASE_INSENSITIVE_ORDER` to eliminate temporary object allocations and reduce GC churn.

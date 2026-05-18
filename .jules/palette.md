@@ -1,0 +1,3 @@
+## 2024-06-25 - Redundant TalkBack Announcements on Jetpack Compose
+**Learning:** Components that intrinsically announce their state to screen readers (like `FilterChip` for selected state) shouldn't have nested icons with `contentDescription`. Also, app icons adjacent to text elements should have `contentDescription = null` to avoid repeating the text. Using `onClickLabel` with `clickable` replaces generic activation announcements.
+**Action:** Always verify if a Compose component announces its own state or has text nearby; if so, set `contentDescription = null` for its decorative/redundant icons. Use `onClickLabel` for `clickable` modifiers.

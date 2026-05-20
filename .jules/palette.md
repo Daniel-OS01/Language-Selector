@@ -1,0 +1,3 @@
+## 2024-05-24 - Nullifying Content Descriptions for Decorative/Redundant Compose UI Elements
+**Learning:** In Jetpack Compose, icons or images that are purely decorative or immediately followed by text labels (like app icons before names, or leading icons in stateful chips) will cause redundant or double announcements by TalkBack if they have a non-null `contentDescription`.
+**Action:** Always set `contentDescription = null` on decorative icons/images or on internal state-indicating icons (e.g. checkmarks in a FilterChip) when the parent component or adjacent text already conveys the semantic meaning or state.

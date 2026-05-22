@@ -1,0 +1,3 @@
+## 2024-05-18 - Improve TalkBack on Clickable List Items
+**Learning:** For Jetpack Compose `clickable` elements, the generic "Double tap to activate" TalkBack announcement does not convey the purpose of the action. Using the `onClickLabel` parameter provides a more descriptive screen reader action (e.g., "Double tap to open App Name"). Also `Role.Button` correctly maps the semantics. `contentDescription = null` for app icon avoids redundant announcements when the row itself is the main interaction target.
+**Action:** Use `onClickLabel` and `role` properties in `Modifier.clickable` and combine it with a parameterized string resource for a11y descriptive actions. Remove redundant image `contentDescription` inside clickable rows.

@@ -1,0 +1,3 @@
+## 2024-05-24 - Avoid string allocations during list sorting and filtering in Kotlin
+**Learning:** Calling `.lowercase()` on strings within `filter` or `sortedBy` operations inside loops or collection processing leads to unnecessary temporary string allocations, impacting memory and performance (especially in view models where these lists might be processed frequently).
+**Action:** Use `.contains(..., ignoreCase = true)` for searching instead of lowercasing both query and target. For sorting, replace chained `.sortedBy { ... }` calls with `.sortedWith(compareBy<Type> { ... }.thenBy(String.CASE_INSENSITIVE_ORDER) { ... })` to prevent intermediate list creation and string allocations.

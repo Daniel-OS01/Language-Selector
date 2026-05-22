@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import vegabobo.languageselector.R
 import vegabobo.languageselector.ui.screen.main.AppInfo
+import androidx.compose.ui.semantics.Role
 
 @Composable
 fun AppListItem(
@@ -32,16 +33,21 @@ fun AppListItem(
     app: AppInfo,
     onClickApp: (String) -> Unit
 ) {
+    val openAppLabel = stringResource(id = R.string.open_app, app.name)
     Row(
         modifier = Modifier
-            .clickable { onClickApp(app.pkg) }
+            .clickable(
+                onClickLabel = openAppLabel,
+                role = Role.Button,
+                onClick = { onClickApp(app.pkg) }
+            )
             .then(modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Image(
             modifier = Modifier.size(32.dp),
             bitmap = app.icon.toBitmap().asImageBitmap(),
-            contentDescription = "app icon"
+            contentDescription = null
         )
         Spacer(modifier = Modifier.padding(8.dp))
         Column(

@@ -1,0 +1,3 @@
+## 2024-05-23 - Compose Accessibility Roles and Content Descriptions
+**Learning:** Generic 'Double tap to activate' TalkBack announcements can be replaced with descriptive actions by using `onClickLabel` in `clickable` and setting `role = Role.Button`. Furthermore, icons that are purely decorative or announce their state inherently (like the checkmark in `FilterChip`) should use `contentDescription = null` to prevent redundant audio feedback.
+**Action:** Always check `clickable`/`combinedClickable` modifiers for semantic labels (`onClickLabel`/`onLongClickLabel`) and ensure redundant decorative icons have `contentDescription = null` in future Compose implementations.

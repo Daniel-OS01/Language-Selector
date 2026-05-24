@@ -168,15 +168,15 @@ class MainScreenVm @Inject constructor(
             val selectedLabels = _uiState.value.selectLabels.toList()
             val requireModified = selectedLabels.contains(AppLabels.MODIFIED)
             val showSystemApps = selectedLabels.contains(AppLabels.SYSTEM_APP)
-            val normalizedQuery = query.trim()
+            val normalizedQuery = query.trim().lowercase()
 
             val results = withContext(Dispatchers.Default) {
                 val queryFiltered = if (normalizedQuery.isEmpty()) {
                     appsSnapshot
                 } else {
                     appsSnapshot.filter {
-                        it.pkg.contains(normalizedQuery, ignoreCase = true) ||
-                                it.name.contains(normalizedQuery, ignoreCase = true)
+                        it.pkg.lowercase().contains(normalizedQuery) ||
+                                it.name.lowercase().contains(normalizedQuery)
                     }
                 }
 

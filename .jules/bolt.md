@@ -1,0 +1,3 @@
+## 2024-05-24 - Kotlin list sorting and string allocation improvements
+**Learning:** In Jetpack Compose ViewModels that handle large lists (like installed apps), chained `sortedBy` and `lowercase` string operations can allocate many short-lived objects. Combining sorts with `sortedWith(compareBy(...).thenBy(String.CASE_INSENSITIVE_ORDER) { ... })` and using `ignoreCase = true` in search filters prevents these allocations and speeds up search processing and sorting.
+**Action:** When filtering or sorting large text lists, prefer `String.CASE_INSENSITIVE_ORDER` and `contains(..., ignoreCase = true)` over creating new `.lowercase()` strings for every item.

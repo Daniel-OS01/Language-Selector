@@ -1,0 +1,3 @@
+## 2024-05-24 - Remove redundant contentDescription and specify clickable semantics
+**Learning:** Adding semantic roles (like `Role.Button`) and `onClickLabel` to Jetpack Compose `clickable` modifiers provides descriptive TalkBack announcements ("Double tap to open") instead of the generic "Double tap to activate". Also, icons adjacent to text labels in items like `FilterChip` and List Items should have `contentDescription = null` to avoid redundant announcements.
+**Action:** Always check `clickable` items for appropriate roles and custom labels. Set `contentDescription = null` on state-indicating or decorative icons that are paired with descriptive text.

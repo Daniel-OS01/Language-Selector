@@ -1,0 +1,3 @@
+## 2024-05-24 - Avoid redundant TalkBack announcements in FilterChip
+**Learning:** In Jetpack Compose, components that inherently announce their state (like `FilterChip` for selection) will result in redundant TalkBack announcements if internal state-indicating icons (like a checkmark) also have a `contentDescription`.
+**Action:** Set `contentDescription = null` for state-indicating icons within components that already announce their state.

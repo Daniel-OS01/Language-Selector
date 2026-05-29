@@ -1,0 +1,3 @@
+## 2024-05-29 - Improve TalkBack accessibility for app list items
+**Learning:** In Jetpack Compose, using basic `.clickable {}` on list items like `AppListItem` results in TalkBack announcing generic "Double tap to activate" instructions, which isn't descriptive. Additionally, decorative icons next to descriptive text can create redundant TalkBack announcements if `contentDescription` is not set to `null`.
+**Action:** When creating clickable list items, always use `.clickable(onClickLabel = "...", role = Role.Button) {}` to provide meaningful accessibility labels. For companion icons accompanied by descriptive text, set `contentDescription = null` to avoid redundant TalkBack focus.

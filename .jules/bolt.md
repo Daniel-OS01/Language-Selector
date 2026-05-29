@@ -1,0 +1,3 @@
+## 2024-05-23 - Avoid String Allocations in Sorting and Filtering
+**Learning:** Using chained `.sortedBy { it.property.lowercase() }` and `.lowercase().contains(normalizedQuery)` creates unnecessary intermediate lists and String allocations. `sortedBy` is stable, so primary sort happens last.
+**Action:** Use `.sortedWith(compareBy<Type> { primary }.thenBy(String.CASE_INSENSITIVE_ORDER) { secondary })` (note reverse order) and `.contains(..., ignoreCase = true)` to avoid `.lowercase()` allocations and intermediate list generation in Kotlin.

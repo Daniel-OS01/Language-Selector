@@ -1,0 +1,3 @@
+## 2026-05-30 - Jetpack Compose Accessibility Enhancements
+**Learning:** In Jetpack Compose, icons accompanied by text should have `contentDescription = null` to avoid redundant TalkBack announcements. For `clickable` elements, using `onClickLabel` and semantic roles (like `Role.Button`) provides descriptive actions instead of the generic 'Double tap to activate' announcement.
+**Action:** Always verify if an icon needs a description based on surrounding text or its container's inherent state, and proactively set `onClickLabel` and `role` for interactive elements to improve screen reader context.

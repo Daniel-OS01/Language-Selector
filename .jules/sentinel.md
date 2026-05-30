@@ -1,0 +1,4 @@
+## 2026-05-30 - Android 12+ Backup Security Enhancements
+**Vulnerability:** Application backups could inadvertently expose sensitive app data, even if `android:allowBackup="false"` is set, because this flag is ignored during device-to-device transfers on Android 12+.
+**Learning:** `android:allowBackup="false"` is insufficient on newer Android versions. Explicit data extraction rules must be defined to securely prevent sensitive data from being exported via backups or direct transfers.
+**Prevention:** Always implement `android:dataExtractionRules` with explicit `<exclude>` entries for all data domains (`root`, `file`, `database`, `sharedpref`, `external`) under both `<cloud-backup>` and `<device-transfer>` to guarantee sensitive data cannot be extracted. Also ensure `backup_rules.xml` reflects the same exclusions for older API levels using `<full-backup-content>`.

@@ -1,0 +1,3 @@
+## 2024-05-17 - Avoid Intermediate String Allocations During Kotlin Collections Filtering/Sorting
+**Learning:** Chaining `.lowercase()` inside a `sortedBy` or `filter` lambda in Kotlin creates a new String instance for every single element on every pass. This generates significant memory overhead and GC pressure when working with lists (like installed apps).
+**Action:** Use `.contains(..., ignoreCase = true)` for searching. For sorting, replace chained `sortedBy { it.lowercase() }` with `sortedWith(compareBy<Type> { ... }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.propertyName })` to perform a single-pass sort without string allocations.

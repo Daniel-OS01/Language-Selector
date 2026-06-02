@@ -1,0 +1,3 @@
+## 2024-06-02 - String Allocation in Loops/Filtering
+**Learning:** In Kotlin, using `.lowercase()` to normalize strings during collection filtering or sorting creates intermediate string objects for every item, creating a significant memory overhead and causing the garbage collector to work harder during rapid operations like search-as-you-type.
+**Action:** Always use `.contains(..., ignoreCase = true)` for string searches and `String.CASE_INSENSITIVE_ORDER` when sorting with `sortedWith()` and `compareBy()` to prevent unnecessary memory allocations.

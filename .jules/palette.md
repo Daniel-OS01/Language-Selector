@@ -1,0 +1,3 @@
+## 2024-05-24 - Redundant TalkBack Announcements for Decorative Icons
+**Learning:** Decorative icons placed immediately adjacent to descriptive text (like an app icon next to the app name), or internal icons within components that already announce their state to screen readers (such as a checkmark in a `FilterChip`), cause redundant and noisy TalkBack announcements if they have their own `contentDescription`.
+**Action:** Always set `contentDescription = null` for purely decorative icons or those whose meaning is already conveyed by adjacent text or the parent component's inherent accessibility semantics.

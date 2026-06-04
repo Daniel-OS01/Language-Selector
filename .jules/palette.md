@@ -1,0 +1,3 @@
+## 2024-06-25 - Redundant TalkBack announcements on Compose Icons
+**Learning:** Decorative icons (like the app icon in a list item that already has text) or state-indicating icons inside components that inherently announce their state (like the `Done` icon inside a `FilterChip`) should not have a `contentDescription`. Providing one causes TalkBack to make redundant announcements.
+**Action:** Set `contentDescription = null` for purely decorative icons or those whose state is inherently announced by their parent component.

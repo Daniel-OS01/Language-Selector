@@ -1,0 +1,3 @@
+## 2024-06-05 - Compose TalkBack Optimization for Redundant Icons
+**Learning:** Decorative icons accompanying text or icons denoting state in components that already announce their state (like `FilterChip` or selection boxes) cause repetitive and confusing screen reader announcements.
+**Action:** Explicitly set `contentDescription = null` for purely decorative or state-indicating icons inside semantic components to keep TalkBack focused on action labels and state changes. Use `Role.Button` and `onClickLabel` with `clickable` instead of relying on default "Double tap to activate".

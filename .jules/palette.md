@@ -1,0 +1,6 @@
+## 2026-06-06 - App Search Bar Search Icon Accessibility
+**Learning:** Found an interactive component (SearchBar) where a decorative/structural search icon had its contentDescription set to null. While this isn't terrible for a trailing icon that just visually indicates search, since the overall SearchBar component is a key interactive element and typically has a placeholder, assigning a proper contentDescription to the leading search icon makes it clearer to screen readers that this is the primary search input field icon rather than an invisible decorative element.
+**Action:** When using Material3 SearchBar, assign contentDescription to the leading icon for better TalkBack announcements, especially if the trailing icons have them.
+## 2026-06-06 - Redundant App Icon Descriptions
+**Learning:** Found an interactive AppListItem row where the app icon had a generic contentDescription="app icon". Since the app icon is purely decorative in this context (it sits directly next to the app's text name which TalkBack will read anyway), giving the image a contentDescription creates redundant screen reader announcements (e.g. "app icon, Chrome").
+**Action:** When an image is purely decorative or accompanied by adjacent descriptive text that serves the same purpose, set its contentDescription to null to avoid redundant TalkBack announcements.

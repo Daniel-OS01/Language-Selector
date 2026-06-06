@@ -95,7 +95,7 @@ fun AppInfoScreen(
                             ?: BitmapFactory.decodeResource(
                                 ctx.resources, R.drawable.icon_placeholder
                             ).asImageBitmap(),
-                        contentDescription = "App icon"
+                        contentDescription = null
                     )
                     Column(
                         modifier = Modifier

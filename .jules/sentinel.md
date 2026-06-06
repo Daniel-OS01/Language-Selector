@@ -1,0 +1,4 @@
+## 2024-06-06 - Incomplete App Backup Restrictions
+**Vulnerability:** Android apps targeting API 31+ often fail to properly disable device-to-device transfers and cloud backups. Setting `android:allowBackup="false"` in the Manifest is ignored for device transfers on Android 12+.
+**Learning:** To securely block data extraction, developers must implement `data_extraction_rules.xml` and explicitly `<exclude>` domains (root, file, database, sharedpref, external) under both `<cloud-backup>` and `<device-transfer>`. Furthermore, these rules must match `<full-backup-content>` configurations for older APIs. Empty or commented-out configuration files leave the app vulnerable to local data exfiltration.
+**Prevention:** Always verify that backup restrictions encompass both cloud and local transfer paradigms across legacy and modern API levels by defining explicit rule exclusions.

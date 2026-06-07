@@ -1,0 +1,3 @@
+## 2024-06-07 - TalkBack Semantics in Custom Composables
+**Learning:** In Jetpack Compose, purely visual elements (like application icons in a list) or inherently descriptive elements (like selection icons in `FilterChip`) often require explicit intervention to prevent redundant TalkBack announcements. By default, adding a click listener to a `Row` announces a generic "Double tap to activate".
+**Action:** Always set `contentDescription = null` for decorative or redundant visual icons, especially if they are adjacent to explicit text. Ensure custom clickable rows (e.g., `clickable`, `combinedClickable`) implement `onClickLabel` (and `onLongClickLabel` if applicable) alongside `role = Role.Button` to replace generic announcements with meaningful context.

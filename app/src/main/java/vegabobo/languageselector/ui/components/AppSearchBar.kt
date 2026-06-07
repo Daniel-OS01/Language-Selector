@@ -65,7 +65,7 @@ fun AppSearchBar(
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = null
+                        contentDescription = stringResource(id = R.string.search)
                     )
                 },
                 trailingIcon = {

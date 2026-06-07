@@ -84,7 +84,6 @@ class MainScreenVm @Inject constructor(
             if (_uiState.value.operationMode == OperationMode.NONE)
                 loadOperationMode()
             val packageList = getInstalledPackages().map { parseAppInfo(it) }
-            // Use sortedWith and CASE_INSENSITIVE_ORDER to avoid intermediate list and string allocations
             val sortedList =
                 packageList.sortedWith(
                     compareBy<AppInfo> { !it.isModified() }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
@@ -174,7 +173,6 @@ class MainScreenVm @Inject constructor(
                 val queryFiltered = if (normalizedQuery.isEmpty()) {
                     appsSnapshot
                 } else {
-                    // Use ignoreCase = true to avoid unnecessary string allocations from .lowercase()
                     appsSnapshot.filter {
                         it.pkg.contains(normalizedQuery, ignoreCase = true) ||
                                 it.name.contains(normalizedQuery, ignoreCase = true)
@@ -261,7 +259,6 @@ class MainScreenVm @Inject constructor(
         val idx = apps.indexOfFirst { it.pkg == updatedAi.pkg }
         if (idx != -1 && updatedAi.labels != apps[idx].labels) {
             apps[idx] = updatedAi
-            // Use sortedWith and CASE_INSENSITIVE_ORDER to avoid intermediate list and string allocations
             val newList = _uiState.value.listOfApps.sortedWith(
                 compareBy<AppInfo> { !it.isModified() }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
             ).toMutableList()

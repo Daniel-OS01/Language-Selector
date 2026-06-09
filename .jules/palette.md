@@ -1,0 +1,3 @@
+## 2024-06-25 - TalkBack Optimization for Jetpack Compose Elements
+**Learning:** Adding `contentDescription` to inherently stateful elements (like the checkmark icon in `FilterChip`) or decorative icons alongside text causes redundant or confusing TalkBack announcements. Default `clickable` announcements on lists state "Double tap to activate" which is generic.
+**Action:** Use `contentDescription = null` for internal state-indicating icons inside components that manage their own state (like `FilterChip`) and for icons paired with adjacent descriptive text. Enhance `clickable` elements with explicit `onClickLabel` and `role = Role.Button` to provide clearer actions (e.g., "Double tap to open").

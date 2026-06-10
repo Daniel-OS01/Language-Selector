@@ -1,0 +1,4 @@
+## 2024-06-10 - Redundant TalkBack announcements for decorative/state icons
+
+**Learning:** Purely decorative icons or icons accompanied by adjacent descriptive text (e.g., an app icon next to the app name) and state-indicating icons inside semantic components (e.g., the checkmark in a `FilterChip`) often cause redundant TalkBack announcements if they have a `contentDescription`. In Jetpack Compose, generic clickable elements read "Double tap to activate" which isn't very descriptive.
+**Action:** Set `contentDescription = null` for decorative icons or icons inside components that inherently announce their state. For clickable elements, use the `onClickLabel` parameter with an appropriate semantic `role` (like `Role.Button`) to replace the generic announcement with a specific action description (e.g., "Double tap to open").

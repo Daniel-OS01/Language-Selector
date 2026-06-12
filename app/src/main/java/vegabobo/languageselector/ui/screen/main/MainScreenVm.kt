@@ -84,8 +84,9 @@ class MainScreenVm @Inject constructor(
             if (_uiState.value.operationMode == OperationMode.NONE)
                 loadOperationMode()
             val packageList = getInstalledPackages().map { parseAppInfo(it) }
+            // ⚡ Bolt: Use sortedWith and CASE_INSENSITIVE_ORDER to avoid creating intermediate string and collection allocations.
             var sortedList =
-                packageList.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
+                packageList.sortedWith(compareBy<AppInfo> { !it.isModified() }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
             _uiState.value.listOfApps.clear()
             _uiState.value.listOfApps.addAll(sortedList)
             if (_uiState.value.searchTextFieldValue.isBlank()) {
@@ -171,9 +172,10 @@ class MainScreenVm @Inject constructor(
                 val queryFiltered = if (normalizedQuery.isEmpty()) {
                     appsSnapshot
                 } else {
+                    // ⚡ Bolt: Use ignoreCase = true to avoid allocating new lowercase strings for every item during filtering.
                     appsSnapshot.filter {
-                        it.pkg.lowercase().contains(normalizedQuery) ||
-                                it.name.lowercase().contains(normalizedQuery)
+                        it.pkg.contains(normalizedQuery, ignoreCase = true) ||
+                                it.name.contains(normalizedQuery, ignoreCase = true)
                     }
                 }
 
@@ -257,8 +259,10 @@ class MainScreenVm @Inject constructor(
         val idx = apps.indexOfFirst { it.pkg == updatedAi.pkg }
         if (idx != -1 && updatedAi.labels != apps[idx].labels) {
             apps[idx] = updatedAi
-            val newList = _uiState.value.listOfApps.sortedBy { it.name.lowercase() }
-                .sortedBy { !it.isModified() }.toMutableList()
+            // ⚡ Bolt: Use sortedWith and CASE_INSENSITIVE_ORDER to avoid creating intermediate string and collection allocations.
+            val newList = _uiState.value.listOfApps.sortedWith(
+                compareBy<AppInfo> { !it.isModified() }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+            ).toMutableList()
             _uiState.update {
                 it.copy(
                     listOfApps = newList,

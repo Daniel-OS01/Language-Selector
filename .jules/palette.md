@@ -1,0 +1,3 @@
+## 2024-05-18 - Jetpack Compose TalkBack Optimizations
+**Learning:** Purely decorative icons or icons accompanied by descriptive text, as well as internal state-indicating icons in inherently semantic components like FilterChip, cause redundant TalkBack announcements if they have a contentDescription. Generic 'Double tap to activate' announcements on clickable elements provide poor UX compared to descriptive actions.
+**Action:** Set `contentDescription = null` for decorative, redundant, or state-indicating icons. Use `onClickLabel` and semantic `role` parameters (like `Role.Button`) on `clickable` elements to provide descriptive accessibility actions.

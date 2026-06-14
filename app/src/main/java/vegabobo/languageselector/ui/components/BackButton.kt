@@ -5,15 +5,18 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import vegabobo.languageselector.R
 
 @Composable
 fun BackButton(
     onClick: () -> Unit
 ){
+    val backDesc = stringResource(id = R.string.close)
     IconButton(onClick = { onClick() }) {
         Icon(
             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-            contentDescription = "Back arrow"
+            contentDescription = backDesc
         )
     }
 }

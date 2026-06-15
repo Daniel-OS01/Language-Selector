@@ -1,0 +1,3 @@
+## 2024-06-15 - Redundant TalkBack announcements in Compose
+**Learning:** Components that inherently announce their state (like `FilterChip`) or have adjacent text (like `AppListItem` or `QuickTextButton`) should have `contentDescription = null` for their internal icons to prevent redundant TalkBack announcements. `clickable` elements should use `onClickLabel` and `role` to provide descriptive actions instead of generic "Double tap to activate".
+**Action:** Always verify if an icon is purely decorative or if its state/action is already announced by the parent component or adjacent text. Set `contentDescription = null` in those cases. Use `onClickLabel` and `Role` for generic `clickable` elements.

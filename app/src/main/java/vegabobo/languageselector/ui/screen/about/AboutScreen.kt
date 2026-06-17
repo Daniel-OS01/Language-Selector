@@ -69,7 +69,7 @@ fun AboutScreen(
                         bitmap = context.packageManager
                             .getAppIcon(context.applicationInfo)
                             .toBitmap().asImageBitmap(),
-                        contentDescription = "App icon"
+                        contentDescription = null
                     )
                     Text(text = stringResource(R.string.app_name), fontSize = 22.sp)
                     Text(

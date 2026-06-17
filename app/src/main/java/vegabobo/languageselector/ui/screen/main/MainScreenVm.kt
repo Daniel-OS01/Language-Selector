@@ -85,7 +85,7 @@ class MainScreenVm @Inject constructor(
                 loadOperationMode()
             val packageList = getInstalledPackages().map { parseAppInfo(it) }
             var sortedList =
-                packageList.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
+                packageList.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }).sortedBy { !it.isModified() }
             _uiState.value.listOfApps.clear()
             _uiState.value.listOfApps.addAll(sortedList)
             if (_uiState.value.searchTextFieldValue.isBlank()) {
@@ -165,15 +165,15 @@ class MainScreenVm @Inject constructor(
             val selectedLabels = _uiState.value.selectLabels.toList()
             val requireModified = selectedLabels.contains(AppLabels.MODIFIED)
             val showSystemApps = selectedLabels.contains(AppLabels.SYSTEM_APP)
-            val normalizedQuery = query.trim().lowercase()
+            val normalizedQuery = query.trim()
 
             val results = withContext(Dispatchers.Default) {
                 val queryFiltered = if (normalizedQuery.isEmpty()) {
                     appsSnapshot
                 } else {
                     appsSnapshot.filter {
-                        it.pkg.lowercase().contains(normalizedQuery) ||
-                                it.name.lowercase().contains(normalizedQuery)
+                        it.pkg.contains(normalizedQuery, ignoreCase = true) ||
+                                it.name.contains(normalizedQuery, ignoreCase = true)
                     }
                 }
 
@@ -257,7 +257,7 @@ class MainScreenVm @Inject constructor(
         val idx = apps.indexOfFirst { it.pkg == updatedAi.pkg }
         if (idx != -1 && updatedAi.labels != apps[idx].labels) {
             apps[idx] = updatedAi
-            val newList = _uiState.value.listOfApps.sortedBy { it.name.lowercase() }
+            val newList = _uiState.value.listOfApps.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
                 .sortedBy { !it.isModified() }.toMutableList()
             _uiState.update {
                 it.copy(

@@ -1,0 +1,3 @@
+## 2023-11-09 - Jetpack Compose ContentDescription Redundancy
+**Learning:** In Jetpack Compose, setting `contentDescription` on an `Icon` that is inside a clickable container with adjacent text or inherently manages state (like FilterChip or QuickTextButton) causes screen readers to redundantly announce the text twice or read non-helpful descriptions like "Done icon".
+**Action:** Set `contentDescription = null` on icons that are purely decorative, visually represent adjacent text, or are part of components that inherently manage their own accessibility semantics. Use localized string resources instead of hardcoded strings for functional icons like Back buttons.

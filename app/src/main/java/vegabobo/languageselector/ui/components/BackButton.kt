@@ -13,7 +13,7 @@ fun BackButton(
     IconButton(onClick = { onClick() }) {
         Icon(
             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-            contentDescription = "Back arrow"
+            contentDescription = androidx.compose.ui.res.stringResource(id = vegabobo.languageselector.R.string.back)
         )
     }
 }

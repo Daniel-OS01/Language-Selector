@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
@@ -28,7 +29,7 @@ fun QuickTextButton(
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() }
+            .clickable(role = Role.Button) { onClick() }
             .padding(18.dp)
             .then(modifier),
         verticalArrangement = Arrangement.Center,
@@ -37,7 +38,7 @@ fun QuickTextButton(
         Icon(
             modifier = Modifier.size(28.dp),
             imageVector = icon,
-            contentDescription = text,
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.padding(2.dp))

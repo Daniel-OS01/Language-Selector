@@ -63,7 +63,7 @@ fun ToolbarNormal(
         IconButton(onClick = { onToggleDropdown() }) {
             Icon(
                 imageVector = Icons.Outlined.MoreVert,
-                contentDescription = "More icon"
+                contentDescription = stringResource(R.string.more_options)
             )
         }
     }

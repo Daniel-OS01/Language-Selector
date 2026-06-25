@@ -1,0 +1,3 @@
+## 2024-06-25 - AppListItem Semantic Enhancements
+**Learning:** In Jetpack Compose, icons accompanied by descriptive text (like the app icon next to the app name) should have `contentDescription = null` to avoid redundant TalkBack announcements. Additionally, list items acting as buttons should have appropriate roles (`Role.Button`) and localized action labels (`onClickLabel`).
+**Action:** Always verify if an image is purely decorative or accompanied by text before adding a `contentDescription`, and use semantic properties (`role`, `onClickLabel`) on interactive elements to improve screen reader context.

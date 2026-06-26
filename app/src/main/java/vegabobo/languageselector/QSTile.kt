@@ -115,9 +115,10 @@ class QSTile : TileService() {
             if (!UserServiceProvider.isConnected())
                 Shizuku.bindUserService(ShizukuArgs.userServiceArgs, UserServiceProvider.connection)
         } catch (e: Exception) {
+            // Security: Use e.message instead of e.stackTraceToString() to prevent internal architecture details leakage
             Log.e(
                 BuildConfig.APPLICATION_ID,
-                "Cannot bind UserService, non-fatal because it happened on QSTile.\n" + e.stackTraceToString()
+                "Cannot bind UserService, non-fatal because it happened on QSTile.\n" + e.message
             )
             return
         }
@@ -166,7 +167,8 @@ class QSTile : TileService() {
             try {
                 Log.d(BuildConfig.APPLICATION_ID, "QSTile: ${currentLocale.isEmpty}")
             } catch (e: Exception) {
-                Log.d(BuildConfig.APPLICATION_ID, e.stackTraceToString())
+                // Security: Use e.message instead of e.stackTraceToString() to prevent internal architecture details leakage
+                Log.d(BuildConfig.APPLICATION_ID, e.message ?: "Unknown error")
             }
             val nextLocale = getNextSingleLocale(currentLocale)
             val localeList =

@@ -82,9 +82,10 @@ class UserService : IUserService.Stub() {
             try {
                 ACTIVITY_TASK_MANAGER!!.getTasks(1, false, false, -1).first()
             } catch (e: NoSuchMethodError) {
+                // Security: Use e.message instead of e.stackTraceToString() to prevent internal architecture details leakage
                 Log.w(
                     BuildConfig.APPLICATION_ID,
-                    "getTasks failed, trying again without displayId, error: ${e.stackTraceToString()}"
+                    "getTasks failed, trying again without displayId, error: ${e.message}"
                 )
                 ACTIVITY_TASK_MANAGER!!.getTasks(1, false, false).first()
             }

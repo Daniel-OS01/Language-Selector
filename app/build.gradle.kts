@@ -61,6 +61,7 @@ aboutLibraries {
 dependencies {
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
+    testImplementation("junit:junit:4.13.2")
 
     implementation(libs.libsu.core)
     implementation(libs.libsu.service)

@@ -34,14 +34,18 @@ fun AppListItem(
 ) {
     Row(
         modifier = Modifier
-            .clickable { onClickApp(app.pkg) }
+            .clickable(
+                onClickLabel = null,
+                role = androidx.compose.ui.semantics.Role.Button,
+                onClick = { onClickApp(app.pkg) }
+            )
             .then(modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Image(
             modifier = Modifier.size(32.dp),
             bitmap = app.icon.toBitmap().asImageBitmap(),
-            contentDescription = "app icon"
+            contentDescription = null
         )
         Spacer(modifier = Modifier.padding(8.dp))
         Column(

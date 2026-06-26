@@ -170,7 +170,8 @@ fun Set<String>.parseSetLangs(): MutableList<SingleLocale> {
                 .trim()
             SingleLocale(name, tag)
         } catch (e: Exception) {
-            Log.e(BuildConfig.APPLICATION_ID, e.stackTraceToString())
+            // Security: Use e.message instead of e.stackTraceToString() to prevent internal architecture details leakage
+            Log.e(BuildConfig.APPLICATION_ID, e.message ?: "Unknown error")
             null
         }
     }.toMutableList()

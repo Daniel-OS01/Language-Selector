@@ -84,7 +84,7 @@ class UserService : IUserService.Stub() {
             } catch (e: NoSuchMethodError) {
                 Log.w(
                     BuildConfig.APPLICATION_ID,
-                    "getTasks failed, trying again without displayId, error: ${e.stackTraceToString()}"
+                    "getTasks failed, trying again without displayId, error: ${e.message}"
                 )
                 ACTIVITY_TASK_MANAGER!!.getTasks(1, false, false).first()
             }

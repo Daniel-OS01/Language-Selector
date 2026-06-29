@@ -1,0 +1,3 @@
+## 2024-10-24 - Avoid `.lowercase()` in Kotlin collection filtering
+**Learning:** In Kotlin, using `.lowercase()` directly inside `.filter` or `.sortedBy` on collections creates intermediate string allocations for every element during the operation. This can lead to noticeable performance degradation and unnecessary garbage collection overhead, especially in UI view models rendering large lists of applications.
+**Action:** Replace `.lowercase()` during search and sort operations with `.contains(..., ignoreCase = true)` for string filtering and `String.CASE_INSENSITIVE_ORDER` for sorting to improve performance and reduce memory allocations.

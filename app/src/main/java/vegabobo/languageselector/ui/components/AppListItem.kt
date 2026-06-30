@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import vegabobo.languageselector.R
@@ -34,14 +35,14 @@ fun AppListItem(
 ) {
     Row(
         modifier = Modifier
-            .clickable { onClickApp(app.pkg) }
+            .clickable(role = Role.Button, onClickLabel = stringResource(id = R.string.open)) { onClickApp(app.pkg) }
             .then(modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Image(
             modifier = Modifier.size(32.dp),
             bitmap = app.icon.toBitmap().asImageBitmap(),
-            contentDescription = "app icon"
+            contentDescription = null
         )
         Spacer(modifier = Modifier.padding(8.dp))
         Column(

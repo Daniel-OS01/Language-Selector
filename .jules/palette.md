@@ -1,0 +1,3 @@
+## 2023-10-27 - Semantic roles and redundant announcements in Jetpack Compose
+**Learning:** Hardcoded content descriptions like "Done icon" inside components that manage their own state (like `FilterChip`) or "app icon" alongside descriptive text cause redundant and noisy announcements for TalkBack users. Additionally, clickable elements need explicit semantic `Role` and localized action verbs (e.g., "Open") for better accessibility context.
+**Action:** Always set `contentDescription = null` for inherently decorative or self-managing state icons, use localized strings for functional icons, and explicitly define `Role.Button` and `onClickLabel` with verbs for clickable containers.

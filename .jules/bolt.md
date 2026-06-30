@@ -1,0 +1,3 @@
+## 2024-06-30 - Optimize Case-Insensitive String Operations in Kotlin Collections
+**Learning:** Calling `.lowercase()` inside collection operations like `.sortedBy` or `.filter` in Kotlin is a performance anti-pattern. Because it is executed inside a loop (or sorting algorithm with O(N log N) complexity), it creates significant intermediate string allocations, increasing memory pressure and GC pauses.
+**Action:** Always optimize case-insensitive string operations by using `sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { ... })` for sorting and `contains(..., ignoreCase = true)` for searching to avoid intermediate allocations.

@@ -117,7 +117,7 @@ class QSTile : TileService() {
         } catch (e: Exception) {
             Log.e(
                 BuildConfig.APPLICATION_ID,
-                "Cannot bind UserService, non-fatal because it happened on QSTile.\n" + e.stackTraceToString()
+                "Cannot bind UserService, non-fatal because it happened on QSTile.\n" + e.message.toString()
             )
             return
         }
@@ -166,7 +166,7 @@ class QSTile : TileService() {
             try {
                 Log.d(BuildConfig.APPLICATION_ID, "QSTile: ${currentLocale.isEmpty}")
             } catch (e: Exception) {
-                Log.d(BuildConfig.APPLICATION_ID, e.stackTraceToString())
+                Log.d(BuildConfig.APPLICATION_ID, e.message.toString())
             }
             val nextLocale = getNextSingleLocale(currentLocale)
             val localeList =

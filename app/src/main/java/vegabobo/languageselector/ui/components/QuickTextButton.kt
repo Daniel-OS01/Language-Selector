@@ -1,6 +1,7 @@
 package vegabobo.languageselector.ui.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -28,7 +29,7 @@ fun QuickTextButton(
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() }
+            .clickable(role = Role.Button) { onClick() }
             .padding(18.dp)
             .then(modifier),
         verticalArrangement = Arrangement.Center,
@@ -37,7 +38,7 @@ fun QuickTextButton(
         Icon(
             modifier = Modifier.size(28.dp),
             imageVector = icon,
-            contentDescription = text,
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.padding(2.dp))

@@ -1,0 +1,3 @@
+## 2026-07-04 - Eliminate string allocations in collection operations
+**Learning:** Using `.lowercase()` inside collection operations like `.sortedBy` or `.filter` creates significant intermediate string allocations. This is particularly problematic for lists of apps which can be quite large, leading to O(N log N) allocations for sorting and O(N) for filtering.
+**Action:** Use `sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { ... })` for sorting strings case-insensitively without creating new allocations. For substring searching, use `contains(..., ignoreCase = true)` rather than converting the entire string to lowercase first.

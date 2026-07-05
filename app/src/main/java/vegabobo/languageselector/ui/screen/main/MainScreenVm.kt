@@ -85,7 +85,7 @@ class MainScreenVm @Inject constructor(
                 loadOperationMode()
             val packageList = getInstalledPackages().map { parseAppInfo(it) }
             var sortedList =
-                packageList.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
+                packageList.sortedWith(compareBy<AppInfo> { !it.isModified() }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }) // ⚡ Bolt: Prevent intermediate string allocations in sorting
             _uiState.value.listOfApps.clear()
             _uiState.value.listOfApps.addAll(sortedList)
             if (_uiState.value.searchTextFieldValue.isBlank()) {
@@ -172,8 +172,8 @@ class MainScreenVm @Inject constructor(
                     appsSnapshot
                 } else {
                     appsSnapshot.filter {
-                        it.pkg.lowercase().contains(normalizedQuery) ||
-                                it.name.lowercase().contains(normalizedQuery)
+                        it.pkg.contains(normalizedQuery, ignoreCase = true) ||
+                                it.name.contains(normalizedQuery, ignoreCase = true) // ⚡ Bolt: Prevent intermediate string allocations in filtering
                     }
                 }
 
@@ -257,8 +257,7 @@ class MainScreenVm @Inject constructor(
         val idx = apps.indexOfFirst { it.pkg == updatedAi.pkg }
         if (idx != -1 && updatedAi.labels != apps[idx].labels) {
             apps[idx] = updatedAi
-            val newList = _uiState.value.listOfApps.sortedBy { it.name.lowercase() }
-                .sortedBy { !it.isModified() }.toMutableList()
+            val newList = _uiState.value.listOfApps.sortedWith(compareBy<AppInfo> { !it.isModified() }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }).toMutableList() // ⚡ Bolt: Prevent intermediate string allocations in sorting
             _uiState.update {
                 it.copy(
                     listOfApps = newList,

@@ -1,0 +1,3 @@
+## 2024-07-07 - Redundant TalkBack Announcements in FilterChips
+**Learning:** In Jetpack Compose, stateful components like `FilterChip` inherently manage their own accessibility state (e.g., 'selected' or 'unselected'). Adding a `contentDescription` to their internal state icons (like the 'Done' checkmark) causes TalkBack to announce redundant or confusing information, as the screen reader already announces the chip's selected state.
+**Action:** Set `contentDescription = null` for internal icons within stateful components (like `FilterChip`, `Checkbox`, etc.) that inherently manage and announce their own accessibility states.

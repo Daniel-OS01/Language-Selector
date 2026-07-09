@@ -1,0 +1,3 @@
+## 2026-07-09 - Prevent redundant TalkBack announcements in Compose
+**Learning:** In Jetpack Compose, icons within components that inherently manage their own accessibility state (such as the 'Done' icon in a selected `FilterChip`), or decorative icons next to readable text labels (like app icons in `AppListItem`), should have their `contentDescription` set to `null` to avoid annoying, redundant TalkBack announcements.
+**Action:** Always set `contentDescription = null` for decorative icons or icons inside self-describing stateful components to ensure a clean and intuitive screen reader experience.

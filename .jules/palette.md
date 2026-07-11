@@ -1,0 +1,3 @@
+## 2024-05-24 - Avoid redundant TalkBack announcements for icons with adjacent text
+**Learning:** Decorative icons adjacent to text labels, or icons inside components that manage their own state (like FilterChip's 'Done' icon), shouldn't have contentDescription set to text, as TalkBack will redundantly announce both the icon and the text.
+**Action:** Set `contentDescription = null` for decorative icons and rely on the semantic hierarchy or adjacent text to provide context. For Compose clickable modifiers, explicitly set `role = Role.Button` and provide an actionable `onClickLabel` where appropriate.

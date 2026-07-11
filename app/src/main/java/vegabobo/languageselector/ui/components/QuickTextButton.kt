@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
 
 @Composable
 fun QuickTextButton(
@@ -28,7 +29,7 @@ fun QuickTextButton(
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() }
+            .clickable(role = Role.Button) { onClick() }
             .padding(18.dp)
             .then(modifier),
         verticalArrangement = Arrangement.Center,
@@ -37,7 +38,7 @@ fun QuickTextButton(
         Icon(
             modifier = Modifier.size(28.dp),
             imageVector = icon,
-            contentDescription = text,
+            contentDescription = null, // Text adjacent to the icon acts as label
             tint = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.padding(2.dp))

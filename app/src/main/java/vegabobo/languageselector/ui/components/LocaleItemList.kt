@@ -23,6 +23,7 @@ fun LocaleItemList(
     Box(
         modifier = Modifier
             .combinedClickable(
+                role = androidx.compose.ui.semantics.Role.Button,
                 onClick = { onClick() },
                 onLongClick = { onLongClick() }
             )

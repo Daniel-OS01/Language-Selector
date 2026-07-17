@@ -1,0 +1,3 @@
+## 2024-11-20 - Redundant screen reader announcements in Compose list items
+**Learning:** Icons next to descriptive text in interactive list items should have their `contentDescription` set to `null` to avoid redundant and confusing announcements by screen readers like TalkBack, especially when the text label already identifies the item. Additionally, using `onClickLabel` with a verb (like 'open') and setting `role = Role.Button` makes the interaction explicitly clear.
+**Action:** When creating Compose list items with adjacent text and icons, omit the content description for decorative/identifying icons and ensure the interactive row has an explicit semantic role and an action-oriented `onClickLabel`.

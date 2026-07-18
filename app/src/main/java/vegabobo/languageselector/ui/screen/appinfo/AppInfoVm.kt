@@ -178,6 +178,7 @@ fun Set<String>.parseSetLangs(): MutableList<SingleLocale> {
         // locale saved under a slightly different display name only appears once.
         .distinctBy { it.languageTag }
         // Deterministic, stable ordering: alphabetical by display name.
-        .sortedBy { it.name.lowercase() }
+        // ⚡ Bolt: Avoid intermediate string allocations by using CASE_INSENSITIVE_ORDER
+        .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
         .toMutableList()
 }

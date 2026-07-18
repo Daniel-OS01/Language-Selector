@@ -1,13 +1,16 @@
-## Language Selector
+## Language Selector Neo
 
-#### This Repo is a Fork version:
+#### This Repo is a Fork version of [Language Selector](https://github.com/VegaBobo/Language-Selector) with changes below:
 
-**All the code is vibe coding by using Codex**
+**All the code is vibe coding with using Codex**
 - Improve the seaching experience
    - Fix the lagging when searching.
    - Improve the app list loading time
    - Enter to search instead of next line 
 - Show tag on app list(Such as "System", "User", "Modified")
+   - Pin App with "Modified" tag on the top of the list
+
+- Avalible to Pin the favourite Language top   the language list by hold press the language you want to pin
 
 - Add Chinese Traditional
 

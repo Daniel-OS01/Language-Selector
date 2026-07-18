@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.com.android.application)
-    alias(libs.plugins.org.jetbrains.kotlin.android)
     alias(libs.plugins.com.google.dagger.hilt)
     alias(libs.plugins.com.mikepenz.aboutlibraries)
     alias(libs.plugins.compose.compiler)
@@ -9,7 +8,7 @@ plugins {
 
 android {
     namespace = "vegabobo.languageselector"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "vegabobo.languageselector"
@@ -24,9 +23,22 @@ android {
         }
     }
 
+    signingConfigs {
+        val releaseKeystore = System.getenv("RELEASE_SIGNING_KEYSTORE")
+        if (!releaseKeystore.isNullOrEmpty()) {
+            create("ciRelease") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("RELEASE_SIGNING_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_SIGNING_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig =
+                signingConfigs.findByName("ciRelease") ?: signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -39,9 +51,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
-    kotlinOptions {
-        jvmTarget = "21"
-    }
     buildFeatures {
         buildConfig = true
         compose = true
@@ -52,10 +61,6 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
-}
-
-aboutLibraries {
-    excludeFields = arrayOf("generated")
 }
 
 dependencies {

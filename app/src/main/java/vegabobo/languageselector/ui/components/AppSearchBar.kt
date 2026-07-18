@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
@@ -52,13 +53,17 @@ fun AppSearchBar(
     onClickClear: () -> Unit,
     actions: @Composable RowScope.() -> Unit,
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
     SearchBar(
         modifier = Modifier
             .semantics { isTraversalGroup = true }
             .then(modifier),
         inputField = {
             SearchBarDefaults.InputField(
-                onSearch = { onSearch(it) },
+                onSearch = {
+                    onSearch(it)
+                    keyboardController?.hide()
+                },
                 expanded = isExpanded,
                 onExpandedChange = { onExpandedChange(it) },
                 placeholder = { Text(placeholder) },

@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,7 +32,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
 import vegabobo.languageselector.R
@@ -102,11 +102,19 @@ fun AppInfoScreen(
                             .padding(18.dp)
                             .weight(1f)
                     ) {
-                        Text(text = uiState.appName, fontSize = 22.sp, maxLines = 1)
-                        Text(text = uiState.appPackage, fontSize = 14.sp, maxLines = 1)
+                        Text(
+                            text = uiState.appName,
+                            style = MaterialTheme.typography.titleLarge,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = uiState.appPackage,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1
+                        )
                         Text(
                             text = uiState.currentLanguage.ifEmpty { stringResource(R.string.system_default) },
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1
                         )
                     }
@@ -144,9 +152,12 @@ fun AppInfoScreen(
 
             if (uiState.selectedLanguage != -1) {
                 item { Title(stringResource(R.string.region)) }
-                items(uiState.listOfAllLanguages[uiState.selectedLanguage].locales.size) { index ->
-                    val thisLangReg =
-                        uiState.listOfAllLanguages[uiState.selectedLanguage].locales[index]
+                val regions = uiState.listOfAllLanguages[uiState.selectedLanguage].locales
+                items(
+                    count = regions.size,
+                    key = { "region-${regions[it].languageTag}" }
+                ) { index ->
+                    val thisLangReg = regions[index]
                     LocaleItemList(
                         itemText = thisLangReg.name,
                         onClick = {
@@ -163,10 +174,14 @@ fun AppInfoScreen(
             } else {
                 if (uiState.listOfPinnedLanguages.size != 0) {
                     item { Title(stringResource(R.string.pinned)) }
-                    items(uiState.listOfPinnedLanguages.size) { index ->
+                    items(
+                        count = uiState.listOfPinnedLanguages.size,
+                        key = { "pinned-${uiState.listOfPinnedLanguages[it].languageTag}" }
+                    ) { index ->
                         val thisLanguage = uiState.listOfPinnedLanguages[index]
                         LocaleItemList(
                             itemText = thisLanguage.name,
+                            isPinned = true,
                             onClick = { appInfoVm.onClickLocale(thisLanguage) },
                             onLongClick = {
                                 unpinToast(thisLanguage.name)
@@ -180,7 +195,10 @@ fun AppInfoScreen(
                 item {
                     LocaleItemList(stringResource(R.string.system_default)) { appInfoVm.onClickResetLang() }
                 }
-                items(uiState.listOfSuggestedLanguages.size) { index ->
+                items(
+                    count = uiState.listOfSuggestedLanguages.size,
+                    key = { "suggested-${uiState.listOfSuggestedLanguages[it].languageTag}" }
+                ) { index ->
                     val thisLanguage = uiState.listOfSuggestedLanguages[index]
                     LocaleItemList(
                         itemText = thisLanguage.name,
@@ -193,7 +211,10 @@ fun AppInfoScreen(
                 }
 
                 item { Title(stringResource(R.string.all_languages)) }
-                items(uiState.listOfAllLanguages.size) { index ->
+                items(
+                    count = uiState.listOfAllLanguages.size,
+                    key = { "all-${uiState.listOfAllLanguages[it].language}" }
+                ) { index ->
                     val thisLanguage = uiState.listOfAllLanguages[index]
                     LocaleItemList(thisLanguage.language) {
                         appInfoVm.onClickSingleLanguage(index)

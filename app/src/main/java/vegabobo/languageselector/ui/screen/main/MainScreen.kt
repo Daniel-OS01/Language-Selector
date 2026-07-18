@@ -131,10 +131,14 @@ fun MainScreen(
                                 .padding(top = 72.dp) /* 64 + 10 */
                         )
                     }
-                    items(uiState.listOfApps.size) {
-                        val thisApp = uiState.listOfApps[it]
-                        if (!uiState.isShowSystemAppsHome && thisApp.isSystemApp() && !thisApp.isModified())
-                            return@items
+                    val visibleApps = uiState.listOfApps.filter { app ->
+                        uiState.isShowSystemAppsHome || !app.isSystemApp() || app.isModified()
+                    }
+                    items(
+                        count = visibleApps.size,
+                        key = { visibleApps[it].pkg }
+                    ) { index ->
+                        val thisApp = visibleApps[index]
                         AppListItem(
                             modifier = Modifier.padding(
                                 start = 26.dp,

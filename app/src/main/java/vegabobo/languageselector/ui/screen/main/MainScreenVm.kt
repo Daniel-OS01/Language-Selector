@@ -9,6 +9,9 @@ import com.topjohnwu.superuser.Shell
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,9 +21,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import rikka.shizuku.Shizuku
 import vegabobo.languageselector.BuildConfig
+import vegabobo.languageselector.IUserService
 import vegabobo.languageselector.RootReceivedListener
 import vegabobo.languageselector.dao.AppInfoDb
 import vegabobo.languageselector.service.UserServiceProvider
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 
@@ -33,6 +38,10 @@ class MainScreenVm @Inject constructor(
     val uiState: StateFlow<MainScreenState> = _uiState.asStateFlow()
     var lastSelectedApp: AppInfo? = null
     val dao = appInfoDb.appInfoDao()
+
+    // In-memory cache keyed by package name so filter toggles reuse already-fetched
+    // AppInfo (icon + label + locale IPC) instead of redoing the full pass.
+    private val appInfoCache = ConcurrentHashMap<String, AppInfo>()
 
     fun getIndexFromAppInfoItem(): Int {
         return _uiState.value.listOfApps.indexOfFirst { it.pkg == lastSelectedApp?.pkg }
@@ -62,14 +71,17 @@ class MainScreenVm @Inject constructor(
         fillListOfApps()
     }
 
-    fun parseAppInfo(a: ApplicationInfo): AppInfo {
+    fun parseAppInfo(a: ApplicationInfo, service: IUserService?): AppInfo {
         val isSystemApp = (a.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-        val service = UserServiceProvider.getService()
-        val languagePreferences = service.getApplicationLocales(a.packageName)
+        val languagePreferences = try {
+            service?.getApplicationLocales(a.packageName)
+        } catch (e: Exception) {
+            null
+        }
         val labels = arrayListOf<AppLabels>()
         if (isSystemApp)
             labels.add(AppLabels.SYSTEM_APP)
-        if (!languagePreferences.isEmpty)
+        if (languagePreferences != null && !languagePreferences.isEmpty)
             labels.add(AppLabels.MODIFIED)
         return AppInfo(
             icon = app.packageManager.getAppIcon(a),
@@ -79,13 +91,40 @@ class MainScreenVm @Inject constructor(
         )
     }
 
+    private fun sortApps(apps: List<AppInfo>): List<AppInfo> =
+        apps.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
+
     fun fillListOfApps() {
         viewModelScope.launch(Dispatchers.IO) {
             if (_uiState.value.operationMode == OperationMode.NONE)
                 loadOperationMode()
-            val packageList = getInstalledPackages().map { parseAppInfo(it) }
-            var sortedList =
-                packageList.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
+
+            val packages = getInstalledPackages()
+
+            // Reuse cached AppInfo (e.g. after a filter toggle) instead of redoing the
+            // full IPC + icon-decode pass. Only fetch what is missing from the cache.
+            val fromCache = packages.mapNotNull { appInfoCache[it.packageName] }
+            val parsed: List<AppInfo> = if (fromCache.size == packages.size) {
+                fromCache
+            } else {
+                // Resolve the service once outside the loop; null => graceful degrade.
+                val service = UserServiceProvider.getServiceOrNull()
+                val results = coroutineScope {
+                    packages.chunked(CHUNK_SIZE).map { chunk ->
+                        async(Dispatchers.IO) {
+                            chunk.map { pkg ->
+                                appInfoCache[pkg.packageName]
+                                    ?: parseAppInfo(pkg, service).also {
+                                        appInfoCache[it.pkg] = it
+                                    }
+                            }
+                        }
+                    }.awaitAll().flatten()
+                }
+                results
+            }
+
+            val sortedList = sortApps(parsed)
             _uiState.value.listOfApps.clear()
             _uiState.value.listOfApps.addAll(sortedList)
             if (_uiState.value.searchTextFieldValue.isBlank()) {
@@ -134,6 +173,7 @@ class MainScreenVm @Inject constructor(
 
     companion object {
         private const val SEARCH_DEBOUNCE_MS = 300L
+        private const val CHUNK_SIZE = 25
     }
 
     fun onSearchTextFieldChange(newText: String) {
@@ -250,22 +290,30 @@ class MainScreenVm @Inject constructor(
     }
 
     fun reloadLastSelectedItem() {
-        if (lastSelectedApp == null) return
-        val pkg = app.packageManager.getApplicationInfo(lastSelectedApp!!.pkg, 0)
-        val updatedAi = parseAppInfo(pkg)
-        val apps = _uiState.value.listOfApps
-        val idx = apps.indexOfFirst { it.pkg == updatedAi.pkg }
-        if (idx != -1 && updatedAi.labels != apps[idx].labels) {
-            apps[idx] = updatedAi
-            val newList = _uiState.value.listOfApps.sortedBy { it.name.lowercase() }
-                .sortedBy { !it.isModified() }.toMutableList()
-            _uiState.update {
-                it.copy(
-                    listOfApps = newList,
-                    snackBarDisplay = if (updatedAi.isModified()) SnackBarDisplay.MOVED_TO_TOP else SnackBarDisplay.MOVED_TO_BOTTOM
-                )
+        val selected = lastSelectedApp ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val updatedAi = try {
+                val pkg = app.packageManager.getApplicationInfo(selected.pkg, 0)
+                val service = UserServiceProvider.getServiceOrNull()
+                parseAppInfo(pkg, service)
+            } catch (e: Exception) {
+                return@launch
             }
-            return
+            // Keep the cache in sync with the freshly-fetched state.
+            appInfoCache[updatedAi.pkg] = updatedAi
+            val apps = _uiState.value.listOfApps
+            val idx = apps.indexOfFirst { it.pkg == updatedAi.pkg }
+            if (idx != -1 && updatedAi.labels != apps[idx].labels) {
+                apps[idx] = updatedAi
+                val newList = sortApps(_uiState.value.listOfApps).toMutableList()
+                _uiState.update {
+                    it.copy(
+                        listOfApps = newList,
+                        snackBarDisplay = if (updatedAi.isModified()) SnackBarDisplay.MOVED_TO_TOP else SnackBarDisplay.MOVED_TO_BOTTOM
+                    )
+                }
+                launchSearch(_uiState.value.searchTextFieldValue, debounce = false)
+            }
         }
     }
 

@@ -47,7 +47,11 @@ class MainActivity : ComponentActivity(), Shizuku.OnRequestPermissionResultListe
     val acRequestCode = 1
 
     fun bindShizuku() {
-        Shizuku.bindUserService(ShizukuArgs.userServiceArgs, UserServiceProvider.connection)
+        try {
+            Shizuku.bindUserService(ShizukuArgs.userServiceArgs, UserServiceProvider.connection)
+        } catch (e: Exception) {
+            Log.e(BuildConfig.APPLICATION_ID, "bindShizuku failed: ${e.stackTraceToString()}")
+        }
     }
 
     private val REQUEST_PERMISSION_RESULT_LISTENER = this::onRequestPermissionResult
@@ -83,8 +87,12 @@ class MainActivity : ComponentActivity(), Shizuku.OnRequestPermissionResultListe
 
         RootReceivedListener.setListener(object : IRootListener {
             override fun onRootReceived() {
-                val intent = Intent(application, RootUserService::class.java)
-                RootService.bind(intent, UserServiceProvider.connection)
+                try {
+                    val intent = Intent(application, RootUserService::class.java)
+                    RootService.bind(intent, UserServiceProvider.connection)
+                } catch (e: Exception) {
+                    Log.e(BuildConfig.APPLICATION_ID, "RootService.bind failed: ${e.stackTraceToString()}")
+                }
             }
         })
     }

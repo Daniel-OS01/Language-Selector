@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,9 +46,10 @@ fun AppListItem(
             .then(modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val iconBitmap = remember(app.pkg) { app.icon.toBitmap().asImageBitmap() }
         Image(
             modifier = Modifier.size(32.dp),
-            bitmap = app.icon.toBitmap().asImageBitmap(),
+            bitmap = iconBitmap,
             contentDescription = "app icon"
         )
         Spacer(modifier = Modifier.padding(8.dp))

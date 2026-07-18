@@ -173,5 +173,11 @@ fun Set<String>.parseSetLangs(): MutableList<SingleLocale> {
             Log.e(BuildConfig.APPLICATION_ID, e.stackTraceToString())
             null
         }
-    }.toMutableList()
+    }
+        // De-duplicate by languageTag (not the exact "name,tag" string) so the same
+        // locale saved under a slightly different display name only appears once.
+        .distinctBy { it.languageTag }
+        // Deterministic, stable ordering: alphabetical by display name.
+        .sortedBy { it.name.lowercase() }
+        .toMutableList()
 }

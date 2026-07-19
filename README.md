@@ -4,6 +4,12 @@
 
 **Per-app languages for Android 13+**, when the system Settings UI does not expose them. 
 Fork with working pins, presets, backup, and stability fixes.
+## 🖼️ Screenshots
+
+<div>
+  <img src="https://raw.githubusercontent.com/VegaBobo/Language-Selector/main/other/preview_1.jpg" alt="Application list" width="200" />
+  <img src="https://raw.githubusercontent.com/VegaBobo/Language-Selector/main/other/preview_2.jpg" alt="Language selection" width="200" />
+</div>
 
 ---
 
@@ -116,17 +122,6 @@ Change the foreground app's language from the shade using your pins. Unavailable
 ### 🗂️ Language list
 
 Built from `Locale.getAvailableLocales()` — many entries may not be supported by a given app.
-
----
-
-
-
-## 🖼️ Screenshots
-
-<div>
-  <img src="https://raw.githubusercontent.com/VegaBobo/Language-Selector/main/other/preview_1.jpg" alt="Application list" width="200" />
-  <img src="https://raw.githubusercontent.com/VegaBobo/Language-Selector/main/other/preview_2.jpg" alt="Language selection" width="200" />
-</div>
 
 
 ---

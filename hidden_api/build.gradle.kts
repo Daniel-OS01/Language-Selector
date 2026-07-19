@@ -2,9 +2,15 @@ plugins {
     alias(libs.plugins.com.android.library)
 }
 
+val compileSdkParts = providers.gradleProperty("android.compileSdk").get().split('.', limit = 2)
+
 android {
     namespace = "com.example.hidden_api"
-    compileSdk = 37
+    compileSdk {
+        version = release(compileSdkParts[0].toInt()) {
+            minorApiLevel = compileSdkParts[1].toInt()
+        }
+    }
 
     defaultConfig {
         minSdk = 33

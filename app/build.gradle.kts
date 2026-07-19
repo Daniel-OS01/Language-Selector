@@ -6,9 +6,15 @@ plugins {
     alias(libs.plugins.com.google.devtools.ksp)
 }
 
+val compileSdkParts = providers.gradleProperty("android.compileSdk").get().split('.', limit = 2)
+
 android {
     namespace = "vegabobo.languageselector"
-    compileSdk = 37
+    compileSdk {
+        version = release(compileSdkParts[0].toInt()) {
+            minorApiLevel = compileSdkParts[1].toInt()
+        }
+    }
 
     defaultConfig {
         applicationId = "vegabobo.languageselector"
@@ -37,8 +43,9 @@ android {
 
     buildTypes {
         release {
-            signingConfig =
-                signingConfigs.findByName("ciRelease") ?: signingConfigs.getByName("debug")
+            signingConfigs.findByName("ciRelease")?.let {
+                signingConfig = it
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -68,6 +75,8 @@ android {
 }
 
 dependencies {
+    testImplementation(libs.junit)
+
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
 

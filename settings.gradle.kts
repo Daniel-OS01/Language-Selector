@@ -3,7 +3,6 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
-        maven("https://jitpack.io")
     }
 }
 dependencyResolutionManagement {
@@ -11,11 +10,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven("https://jitpack.io")
-        // Multiple repository sources for Shizuku and other dependencies
-        maven("https://maven.rikka.app/releases")
-        maven("https://maven.rikka.app/snapshots")
-        maven("https://repo1.maven.org/maven2")
+        maven("https://jitpack.io") {
+            content {
+                includeGroup("com.github.topjohnwu.libsu")
+            }
+        }
     }
 }
 

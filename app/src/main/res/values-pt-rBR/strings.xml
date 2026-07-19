@@ -30,4 +30,15 @@
     <string name="warning">Aviso</string>
     <string name="warning_system_apps">Selecionar idiomas de aplicativos do sistema não é recomendado, você tem certeza?</string>
     <string name="cancel">Cancelar</string>
+    <string name="search">Pesquisar apps</string>
+    <string name="search_no_results">Nenhum resultado encontrado</string>
+    <string name="search_start_typing">Digite algo para pesquisar</string>
+    <string name="filter_show_system">Mostrar sistema</string>
+    <string name="filter_show_modified">Mostrar modificados</string>
+    <string name="search_history_title">Histórico</string>
+    <string name="search_history_clear">Limpar</string>
+    <string name="label_modified">Modificado</string>
+    <string name="snackbar_modified_moved_up">O app modificado foi movido para cima</string>
+    <string name="snackbar_unmodified_moved_down">O app não modificado foi movido para baixo</string>
+    <string name="snackbar_action_navigate">Navegar</string>
 </resources>

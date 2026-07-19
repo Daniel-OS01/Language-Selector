@@ -71,8 +71,9 @@
 -keep interface androidx.compose.** { *; }
 
 # Keep Composable functions
--keep @androidx.compose.runtime.Composable class * { *; }
--keep @androidx.compose.runtime.Composable fun * { *; }
+-keepclassmembers class * {
+    @androidx.compose.runtime.Composable <methods>;
+}
 
 # ============================================================================
 # === ANDROID LIFECYCLE & JETPACK ===

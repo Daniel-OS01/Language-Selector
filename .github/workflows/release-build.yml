@@ -3,74 +3,267 @@ name: Build and Publish APK on Updates
 on:
   push:
     branches: [main, work]
-    paths-ignore:
-      - 'README.md'
-      - '.github/**'
+    paths:
+      - '.github/workflows/release-build.yml'
+      - 'app/**'
+      - 'hidden_api/**'
+      - 'gradle/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'scripts/ci/**'
+  pull_request:
+    branches: [main, work]
+    paths:
+      - '.github/workflows/release-build.yml'
+      - 'app/**'
+      - 'hidden_api/**'
+      - 'gradle/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'scripts/ci/**'
   workflow_dispatch:
-  release:
-    types: [published]
+    inputs:
+      publish:
+        description: Publish a signed SHA release after verification
+        required: true
+        default: false
+        type: boolean
 
-# 防止同一分支/標籤同時跑多個工作
+permissions:
+  contents: read
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref != 'refs/heads/main' }}
 
 jobs:
   build:
+    name: Test and build release APK
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    timeout-minutes: 45
     env:
-      RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-      RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
-      RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-      RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+      SHOULD_PUBLISH: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
+    outputs:
+      short_sha: ${{ steps.release_metadata.outputs.short_sha }}
+      tag: ${{ steps.release_metadata.outputs.tag }}
+      apk_name: ${{ steps.validate_apk.outputs.apk_name }}
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
         with:
           distribution: temurin
           java-version: '21'
-          cache: gradle
 
-      - name: Set up Android SDK (cmdline-tools)
-        uses: android-actions/setup-android@v4
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
 
-      - name: Install platform-tools, platform 36, build-tools 36.0.0
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
         run: |
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          archive="$RUNNER_TEMP/actionlint.tar.gz"
+          curl --fail --location --retry 3 --retry-all-errors \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            --output "$archive"
+          echo "$ACTIONLINT_SHA256  $archive" | sha256sum --check --strict
+          tar --extract --gzip --file "$archive" --directory "$RUNNER_TEMP" actionlint
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Lint GitHub Actions workflows
+        run: actionlint
+
+      - name: Read and install the configured Android platform
+        run: |
+          compile_sdk=$(sed -n 's/^android\.compileSdk=//p' gradle.properties)
+          if [[ ! "$compile_sdk" =~ ^[0-9]+\.[0-9]+$ ]]; then
+            echo "android.compileSdk must be a major.minor release in gradle.properties" >&2
+            exit 1
+          fi
+          echo "ANDROID_COMPILE_SDK=$compile_sdk" >> "$GITHUB_ENV"
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-$compile_sdk" \
+            "build-tools;36.0.0"
+
+      - name: Test the Shizuku artifact verifier
+        run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
+
+      - name: Verify configured Shizuku artifacts
+        run: python3 scripts/ci/verify_shizuku_artifacts.py
+
+      - name: Validate release signing configuration
+        if: env.SHOULD_PUBLISH == 'true'
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          missing=()
+          [[ -n "$RELEASE_KEYSTORE_BASE64" ]] || missing+=(RELEASE_KEYSTORE_BASE64)
+          [[ -n "$RELEASE_KEYSTORE_PASSWORD" ]] || missing+=(RELEASE_KEYSTORE_PASSWORD)
+          [[ -n "$RELEASE_KEY_ALIAS" ]] || missing+=(RELEASE_KEY_ALIAS)
+          [[ -n "$RELEASE_KEY_PASSWORD" ]] || missing+=(RELEASE_KEY_PASSWORD)
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Cannot publish: missing GitHub Actions secrets: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
 
       - name: Decode release keystore
-        if: ${{ env.RELEASE_KEYSTORE_BASE64 != '' }}
+        if: env.SHOULD_PUBLISH == 'true'
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
-          echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > $HOME/release.keystore
-          echo "RELEASE_SIGNING_KEYSTORE=$HOME/release.keystore" >> $GITHUB_ENV
-          echo "RELEASE_SIGNING_KEYSTORE_PASSWORD=$RELEASE_KEYSTORE_PASSWORD" >> $GITHUB_ENV
-          echo "RELEASE_SIGNING_KEY_ALIAS=$RELEASE_KEY_ALIAS" >> $GITHUB_ENV
-          echo "RELEASE_SIGNING_KEY_PASSWORD=$RELEASE_KEY_PASSWORD" >> $GITHUB_ENV
+          keystore="$RUNNER_TEMP/release.keystore"
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          chmod 600 "$keystore"
+          {
+            echo "RELEASE_SIGNING_KEYSTORE=$keystore"
+            echo "RELEASE_SIGNING_KEYSTORE_PASSWORD=$RELEASE_KEYSTORE_PASSWORD"
+            echo "RELEASE_SIGNING_KEY_ALIAS=$RELEASE_KEY_ALIAS"
+            echo "RELEASE_SIGNING_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
 
-      - name: Build release APK
-        run: ./gradlew assembleRelease
+      - name: Run release tests, lint, and build
+        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest lintRelease assembleRelease
 
-      - name: Compute short sha
-        run: echo "SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)" >> $GITHUB_ENV
+      - name: Compute release metadata
+        id: release_metadata
+        run: |
+          short_sha=${GITHUB_SHA::7}
+          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Publish APK to GitHub Release
-        uses: ncipollo/release-action@v1
+      - name: Validate release APK
+        id: validate_apk
+        run: |
+          mapfile -t apks < <(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print)
+          if (( ${#apks[@]} != 1 )); then
+            printf 'Expected exactly one release APK, found %d\n' "${#apks[@]}" >&2
+            printf '%s\n' "${apks[@]}" >&2
+            exit 1
+          fi
+
+          mkdir -p dist
+          apk_name="language-selector-${{ steps.release_metadata.outputs.short_sha }}.apk"
+          cp "${apks[0]}" "dist/$apk_name"
+          echo "apk_name=$apk_name" >> "$GITHUB_OUTPUT"
+
+          if [[ "$SHOULD_PUBLISH" == 'true' ]]; then
+            apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)
+            if [[ -z "$apksigner" ]]; then
+              echo "Cannot publish: apksigner is not installed" >&2
+              exit 1
+            fi
+            "$apksigner" verify --verbose --print-certs "dist/$apk_name"
+          fi
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          tag: sha-${{ env.SHORT_SHA }}
-          name: "Build sha-${{ env.SHORT_SHA }}"
-          commit: ${{ github.sha }}
-          artifacts: app/build/outputs/apk/release/*.apk
-          artifactContentType: application/vnd.android.package-archive
-          allowUpdates: true
-          replacesArtifacts: true
-          makeLatest: true
+          name: release-apk-${{ github.sha }}
+          path: dist/${{ steps.validate_apk.outputs.apk_name }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Upload diagnostic reports
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-diagnostics-${{ github.run_id }}
+          path: |
+            **/build/reports/**
+            **/build/test-results/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+  publish:
+    name: Publish signed APK
+    needs: build
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      APK_NAME: ${{ needs.build.outputs.apk_name }}
+      RELEASE_TAG: ${{ needs.build.outputs.tag }}
+      SHORT_SHA: ${{ needs.build.outputs.short_sha }}
+
+    steps:
+      - name: Download verified APK
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-apk-${{ github.sha }}
+          path: dist
+
+      - name: Set up Android SDK for APK verification
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+
+      - name: Verify downloaded APK signature
+        run: |
+          apk="dist/$APK_NAME"
+          [[ -s "$apk" ]] || { echo "Missing or empty APK: $apk" >&2; exit 1; }
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
+          sdkmanager "build-tools;36.0.0" >/dev/null
+          apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)
+          [[ -n "$apksigner" ]] || { echo "apksigner is not installed" >&2; exit 1; }
+          "$apksigner" verify --verbose --print-certs "$apk"
+
+      - name: Publish idempotent SHA release
+        env:
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          apk="dist/$APK_NAME"
+          title="Build sha-$SHORT_SHA"
+
+          if release_json=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets 2>/dev/null); then
+            is_draft=$(jq -r '.isDraft' <<< "$release_json")
+            if [[ "$is_draft" == 'false' ]]; then
+              if jq -e --arg name "$APK_NAME" '.assets[] | select(.name == $name)' <<< "$release_json" >/dev/null; then
+                echo "Release $RELEASE_TAG already contains $APK_NAME; nothing to publish."
+                exit 0
+              fi
+              echo "Published release $RELEASE_TAG exists without $APK_NAME; refusing to mutate it." >&2
+              exit 1
+            fi
+            gh release upload "$RELEASE_TAG" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$apk" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$TARGET_SHA" \
+              --title "$title" \
+              --notes "Automated verified build for commit $TARGET_SHA." \
+              --draft
+          fi
+
+          gh release edit "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --latest

@@ -30,4 +30,15 @@
     <string name="warning">警告</string>
     <string name="warning_system_apps">システムアプリから言語を選択することは推奨されていません。続行しますか？</string>
     <string name="cancel">キャンセル</string>
+    <string name="search">アプリを検索</string>
+    <string name="search_no_results">検索結果がありません</string>
+    <string name="search_start_typing">検索語を入力してください</string>
+    <string name="filter_show_system">システムを表示</string>
+    <string name="filter_show_modified">変更済みを表示</string>
+    <string name="search_history_title">履歴</string>
+    <string name="search_history_clear">クリア</string>
+    <string name="label_modified">変更済み</string>
+    <string name="snackbar_modified_moved_up">変更済みのアプリを上に移動しました</string>
+    <string name="snackbar_unmodified_moved_down">未変更のアプリを下に移動しました</string>
+    <string name="snackbar_action_navigate">移動</string>
 </resources>

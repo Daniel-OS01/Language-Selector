@@ -25,7 +25,7 @@ class LocaleManager {
             }
 
             localeListMap[language] =
-                LocaleRegion(language, arrayListOf())
+                LocaleRegion(language, arrayListOf(SingleLocale(languageName, languageTag)))
         }
         localeList.addAll(localeListMap.values)
         localeList.sortBy { it.language }

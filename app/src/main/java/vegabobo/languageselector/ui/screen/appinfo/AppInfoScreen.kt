@@ -216,10 +216,18 @@ fun AppInfoScreen(
                     key = { "all-${uiState.listOfAllLanguages[it].language}" }
                 ) { index ->
                     val thisLanguage = uiState.listOfAllLanguages[index]
-                    LocaleItemList(thisLanguage.language) {
-                        appInfoVm.onClickSingleLanguage(index)
-                        coroutineScope.launch { listState.scrollToItem(0) }
-                    }
+                    LocaleItemList(
+                        itemText = thisLanguage.language,
+                        onClick = {
+                            appInfoVm.onClickSingleLanguage(index)
+                            coroutineScope.launch { listState.scrollToItem(0) }
+                        },
+                        onLongClick = {
+                            val locale = thisLanguage.locales.firstOrNull() ?: return@LocaleItemList
+                            pinToast(locale.name)
+                            appInfoVm.onPinLang(locale)
+                        }
+                    )
                 }
             }
             item { Spacer(modifier = Modifier.padding(it.calculateBottomPadding())) }

@@ -107,8 +107,12 @@ class MainScreenVm @Inject constructor(
     private fun sortApps(apps: List<AppInfo>): List<AppInfo> =
         apps.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
 
+    private var fillListJob: Job? = null
+    private var searchJob: Job? = null
+
     fun fillListOfApps() {
-        viewModelScope.launch(Dispatchers.IO) {
+        fillListJob?.cancel()
+        fillListJob = viewModelScope.launch(Dispatchers.IO) {
             if (_uiState.value.operationMode == OperationMode.NONE)
                 loadOperationMode()
 
@@ -138,13 +142,14 @@ class MainScreenVm @Inject constructor(
             }
 
             val sortedList = sortApps(parsed)
+            val searchQuery = _uiState.value.searchTextFieldValue
             _uiState.value.listOfApps.clear()
             _uiState.value.listOfApps.addAll(sortedList)
-            if (_uiState.value.searchTextFieldValue.isBlank()) {
+            if (searchQuery.isBlank()) {
                 _uiState.value.searchResults.clear()
                 _uiState.value.searchResults.addAll(sortedList)
             } else {
-                launchSearch(_uiState.value.searchTextFieldValue, debounce = false)
+                launchSearch(searchQuery, debounce = false)
             }
             _uiState.update { it.copy(isLoading = false) }
         }
@@ -181,8 +186,6 @@ class MainScreenVm @Inject constructor(
     fun onClickProceedShizuku() {
         loadOperationMode()
     }
-
-    private var searchJob: Job? = null
 
     companion object {
         private const val SEARCH_DEBOUNCE_MS = 300L

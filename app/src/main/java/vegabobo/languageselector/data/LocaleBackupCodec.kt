@@ -2,6 +2,7 @@ package vegabobo.languageselector.data
 
 import android.content.SharedPreferences
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.util.UUID
 
@@ -19,18 +20,22 @@ object LocaleBackupCodec {
     }
 
     fun decodeBackup(json: String): LocaleBackup {
-        val root = JSONObject(json)
-        val schema = root.optInt("schemaVersion", -1)
-        require(schema == SCHEMA_VERSION) {
-            "Unsupported backup schemaVersion: $schema"
+        try {
+            val root = JSONObject(json)
+            val schema = root.optInt("schemaVersion", -1)
+            require(schema == SCHEMA_VERSION) {
+                "Unsupported backup schemaVersion: $schema"
+            }
+            return LocaleBackup(
+                schemaVersion = schema,
+                exportedAt = root.optLong("exportedAt", 0L),
+                apps = decodeApps(root.optJSONArray("apps")),
+                pinnedLocales = decodeStringList(root.optJSONArray("pinnedLocales")),
+                presets = decodePresets(root.optJSONArray("presets")),
+            )
+        } catch (e: JSONException) {
+            throw IllegalArgumentException("Invalid backup JSON", e)
         }
-        return LocaleBackup(
-            schemaVersion = schema,
-            exportedAt = root.optLong("exportedAt", 0L),
-            apps = decodeApps(root.optJSONArray("apps")),
-            pinnedLocales = decodeStringList(root.optJSONArray("pinnedLocales")),
-            presets = decodePresets(root.optJSONArray("presets")),
-        )
     }
 
     fun encodePresets(presets: List<LocalePreset>): JSONArray {
@@ -45,14 +50,24 @@ object LocaleBackupCodec {
         if (array == null) return emptyList()
         val out = ArrayList<LocalePreset>(array.length())
         for (i in 0 until array.length()) {
-            out.add(decodePreset(array.getJSONObject(i)))
+            val obj = try {
+                array.optJSONObject(i)
+            } catch (_: JSONException) {
+                null
+            } ?: continue
+            val preset = decodePreset(obj) ?: continue
+            out.add(preset)
         }
         return out
     }
 
     fun loadPresets(sp: SharedPreferences): List<LocalePreset> {
         val raw = sp.getString(PrefConstants.LOCALE_PRESETS, null) ?: return emptyList()
-        return decodePresets(JSONArray(raw))
+        return try {
+            decodePresets(JSONArray(raw))
+        } catch (_: JSONException) {
+            emptyList()
+        }
     }
 
     fun savePresets(sp: SharedPreferences, presets: List<LocalePreset>) {
@@ -97,10 +112,13 @@ object LocaleBackupCodec {
             .put("apps", encodeApps(preset.apps))
     }
 
-    private fun decodePreset(obj: JSONObject): LocalePreset {
+    private fun decodePreset(obj: JSONObject): LocalePreset? {
+        val id = obj.optString("id", "")
+        val name = obj.optString("name", "")
+        if (id.isBlank() || name.isBlank()) return null
         return LocalePreset(
-            id = obj.getString("id"),
-            name = obj.getString("name"),
+            id = id,
+            name = name,
             createdAt = obj.optLong("createdAt", 0L),
             apps = decodeApps(obj.optJSONArray("apps")),
         )
@@ -122,7 +140,7 @@ object LocaleBackupCodec {
         if (array == null) return emptyList()
         val out = ArrayList<AppLocaleEntry>(array.length())
         for (i in 0 until array.length()) {
-            val obj = array.getJSONObject(i)
+            val obj = array.optJSONObject(i) ?: continue
             val packageName = obj.optString("packageName", "")
             val languageTag = obj.optString("languageTag", "")
             if (packageName.isNotBlank() && languageTag.isNotBlank()) {

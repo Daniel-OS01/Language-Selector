@@ -62,11 +62,19 @@ class LocaleSnapshot @Inject constructor(
 
         for (entry in desired.values) {
             val localeList = LocaleList(Locale.forLanguageTag(entry.languageTag))
-            service.setApplicationLocales(entry.packageName, localeList)
+            try {
+                service.setApplicationLocales(entry.packageName, localeList)
+            } catch (_: Exception) {
+                // Continue applying remaining packages.
+            }
         }
 
         for (pkg in LocaleApplyPlan.packagesToClear(currentlyModified, desired.keys)) {
-            service.setApplicationLocales(pkg, LocaleList.getEmptyLocaleList())
+            try {
+                service.setApplicationLocales(pkg, LocaleList.getEmptyLocaleList())
+            } catch (_: Exception) {
+                // Continue clearing remaining packages.
+            }
         }
     }
 

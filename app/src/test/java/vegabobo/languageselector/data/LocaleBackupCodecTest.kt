@@ -1,5 +1,7 @@
 package vegabobo.languageselector.data
 
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -55,5 +57,53 @@ class LocaleBackupCodecTest {
             snapshotPackages = listOf("a", "c"),
         )
         assertEquals(listOf("b"), clear)
+    }
+
+    @Test
+    fun `decodeBackup maps malformed json to IllegalArgumentException`() {
+        try {
+            LocaleBackupCodec.decodeBackup("{not-json")
+            throw AssertionError("Expected invalid JSON to fail")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("Invalid backup JSON"))
+        }
+    }
+
+    @Test
+    fun `decodePresets skips malformed entries and keeps valid ones`() {
+        val presets = JSONArray()
+            .put(JSONObject().put("id", "good").put("name", "Good").put("createdAt", 1L))
+            .put(JSONObject().put("id", "").put("name", "Missing id"))
+            .put(JSONObject().put("name", "No id field"))
+            .put("not-an-object")
+            .put(
+                JSONObject()
+                    .put("id", "also-good")
+                    .put("name", "Also Good")
+                    .put("createdAt", 2L)
+                    .put(
+                        "apps",
+                        JSONArray().put(
+                            JSONObject()
+                                .put("packageName", "com.example")
+                                .put("languageTag", "en")
+                        )
+                    )
+            )
+
+        val decoded = LocaleBackupCodec.decodePresets(presets)
+
+        assertEquals(2, decoded.size)
+        assertEquals("good", decoded[0].id)
+        assertEquals("Good", decoded[0].name)
+        assertEquals("also-good", decoded[1].id)
+        assertEquals(1, decoded[1].apps.size)
+        assertEquals("com.example", decoded[1].apps[0].packageName)
+    }
+
+    @Test
+    fun `decodePresets tolerates invalid array payload`() {
+        assertEquals(emptyList<LocalePreset>(), LocaleBackupCodec.decodePresets(null))
+        assertEquals(emptyList<LocalePreset>(), LocaleBackupCodec.decodePresets(JSONArray()))
     }
 }

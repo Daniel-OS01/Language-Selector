@@ -20,7 +20,7 @@
     <string name="unpinned">%1$s 已取消置顶</string>
     <string name="about">关于</string>
     <string name="deps_libs">依赖和库信息：</string>
-    <string name="version">版本 %1$s（%2$s）</string>
+    <string name="version">版本 %1$s（%2$d）</string>
     <string name="app">应用</string>
     <string name="ghrepo">GitHub 仓库</string>
     <string name="view_source">查看源代码</string>

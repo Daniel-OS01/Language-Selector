@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,7 +46,12 @@ class SettingsVm @Inject constructor(
     }
 
     fun reloadPresets() {
-        _uiState.update { it.copy(presets = LocaleBackupCodec.loadPresets(sp)) }
+        val presets = try {
+            LocaleBackupCodec.loadPresets(sp)
+        } catch (_: Exception) {
+            emptyList()
+        }
+        _uiState.update { it.copy(presets = presets) }
     }
 
     fun openSaveDialog() {
@@ -167,6 +173,8 @@ class SettingsVm @Inject constructor(
             _uiState.update { it.copy(isBusy = true, message = null) }
             try {
                 block()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     _uiState.update {

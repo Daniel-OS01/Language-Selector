@@ -21,7 +21,7 @@
     <string name="unpinned">%1$s のピン留めを解除しました</string>
     <string name="about">About</string>
     <string name="deps_libs">依存関係およびライブラリ:</string>
-    <string name="version">Version %1$s (%2$s)</string>
+    <string name="version">Version %1$s (%2$d)</string>
     <string name="app">アプリケーション</string>
     <string name="ghrepo">GitHub リポジトリ</string>
     <string name="view_source">ソースコードを表示</string>

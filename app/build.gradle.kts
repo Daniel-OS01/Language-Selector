@@ -8,12 +8,12 @@ plugins {
 
 android {
     namespace = "vegabobo.languageselector"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "vegabobo.languageselector"
         minSdk = 33
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 5
         versionName = "1.04"
 
@@ -60,6 +60,10 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+    
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
     }
 }
 

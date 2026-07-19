@@ -1,8 +1,6 @@
-# Language Selector Neo
+# Language Selector Plus
 
-[Validate Android Build](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml)
-[Publish APK](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/publish-apk.yml)
-CodeRabbit Pull Request Reviews
+[![Validate Android Build](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml/badge.svg)](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml) [![Publish APK](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/publish-apk.yml/badge.svg)](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/publish-apk.yml) ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Daniel-OS01/Language-Selector?utm_source=oss&utm_medium=github&utm_campaign=Daniel-OS01%2FLanguage-Selector&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
 **Per-app languages for Android 13+**, when the system Settings UI does not expose them. 
 Fork with working pins, presets, backup, and stability fixes.

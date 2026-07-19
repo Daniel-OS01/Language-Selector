@@ -47,7 +47,8 @@ version_code_from() {
     printf 'Invalid SemVer components in %s\n' "$version" >&2
     return 1
   fi
-  if (( 10#$major >= 1000 || 10#$minor >= 1000 || 10#$patch >= 1000 )); then
+  # Reject lexically before 10# arithmetic so over-long digits cannot overflow Bash.
+  if [[ ${#major} -gt 3 || ${#minor} -gt 3 || ${#patch} -gt 3 ]]; then
     printf 'SemVer component out of range (>=1000) in %s\n' "$version" >&2
     return 1
   fi

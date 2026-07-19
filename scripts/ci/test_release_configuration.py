@@ -1,3 +1,4 @@
+# ruff: noqa: S603, S607
 from __future__ import annotations
 
 import os
@@ -299,6 +300,39 @@ class ReleaseConfigurationTest(unittest.TestCase):
                 {
                     "BUMP": "minor",
                     "GITHUB_SHA": next_sha,
+                    "FALLBACK_VERSION": "2.0.0",
+                    "GITHUB_OUTPUT": str(output_path),
+                }
+            )
+            result = subprocess.run(
+                ["bash", str(VERSION_SCRIPT)],
+                check=False,
+                capture_output=True,
+                cwd=repo,
+                env=environment,
+                text=True,
+            )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("out of range", result.stderr)
+
+    def test_resolve_next_version_rejects_overlong_component_lexically(self) -> None:
+        repo, sha = self.init_git_repo()
+        subprocess.run(
+            ["git", "tag", "v1.1000000000000.0"],
+            check=True,
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "github-output"
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "BUMP": "minor",
+                    "GITHUB_SHA": sha,
                     "FALLBACK_VERSION": "2.0.0",
                     "GITHUB_OUTPUT": str(output_path),
                 }

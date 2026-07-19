@@ -19,6 +19,11 @@ SIGNING_SECRET_NAMES = (
 
 
 class ReleaseConfigurationTest(unittest.TestCase):
+    def workflow_text(self) -> str:
+        return (
+            REPOSITORY_ROOT / ".github" / "workflows" / "release-build.yml"
+        ).read_text(encoding="utf-8")
+
     def test_compile_sdk_has_one_value_used_by_modules_and_ci(self) -> None:
         properties = (REPOSITORY_ROOT / "gradle.properties").read_text(encoding="utf-8")
         matches = re.findall(r"^android\.compileSdk=(.+)$", properties, flags=re.MULTILINE)
@@ -33,17 +38,59 @@ class ReleaseConfigurationTest(unittest.TestCase):
             self.assertIn('providers.gradleProperty("android.compileSdk")', build_file)
             self.assertNotRegex(build_file, r"compileSdk\s*=\s*\d+")
 
-        workflow = (
-            REPOSITORY_ROOT / ".github" / "workflows" / "release-build.yml"
-        ).read_text(encoding="utf-8")
+        workflow = self.workflow_text()
         self.assertIn("android\\.compileSdk=", workflow)
         self.assertIn('"platforms;android-$compile_sdk"', workflow)
         self.assertNotRegex(workflow, r"platforms;android-\d")
 
+    def test_build_tools_is_single_sourced_and_propagated(self) -> None:
+        properties = (REPOSITORY_ROOT / "gradle.properties").read_text(encoding="utf-8")
+        matches = re.findall(r"^android\.buildTools=(.+)$", properties, flags=re.MULTILINE)
+
+        self.assertEqual(1, len(matches), "android.buildTools must be declared exactly once")
+        self.assertRegex(matches[0], r"^\d+\.\d+\.\d+$")
+
+        workflow = self.workflow_text()
+        self.assertIn("id: android_versions", workflow)
+        self.assertIn("android\\.buildTools=", workflow)
+        self.assertIn('build_tools: ${{ steps.android_versions.outputs.build_tools }}', workflow)
+        self.assertIn('ANDROID_BUILD_TOOLS: ${{ needs.build.outputs.build_tools }}', workflow)
+        self.assertIn('"build-tools;$build_tools"', workflow)
+        self.assertIn('"build-tools;$ANDROID_BUILD_TOOLS"', workflow)
+        self.assertNotRegex(workflow, r"build-tools;\d")
+
+        exact_apksigner = (
+            'apksigner="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS/apksigner"'
+        )
+        self.assertEqual(2, workflow.count(exact_apksigner))
+        self.assertIn('[[ -x "$apksigner" ]]', workflow)
+        self.assertNotIn("find \"$ANDROID_HOME/build-tools\"", workflow)
+        self.assertNotIn("tail -n 1", workflow)
+
+    def test_workflow_paths_cover_all_workflow_files(self) -> None:
+        workflow = self.workflow_text()
+
+        self.assertEqual(2, workflow.count("'.github/workflows/**'"))
+        self.assertEqual(
+            2,
+            len(re.findall(r"^\s+- '\.github/workflows/\*\*'\s*$", workflow, flags=re.MULTILINE)),
+        )
+        self.assertNotIn("'.github/workflows/release-build.yml'", workflow)
+
+    def test_ci_version_code_is_validated_and_wired(self) -> None:
+        app_build = (REPOSITORY_ROOT / "app" / "build.gradle.kts").read_text(
+            encoding="utf-8"
+        )
+        workflow = self.workflow_text()
+
+        self.assertIn('System.getenv("CI_VERSION_CODE")', app_build)
+        self.assertIn("CI_VERSION_CODE must be an integer from 1 to 2100000000", app_build)
+        self.assertIn("?: return 5", app_build)
+        self.assertIn("versionCode = resolveVersionCode()", app_build)
+        self.assertIn("CI_VERSION_CODE: ${{ github.run_number }}", workflow)
+
     def test_publish_is_main_only_and_uses_a_full_sha_tag(self) -> None:
-        workflow = (
-            REPOSITORY_ROOT / ".github" / "workflows" / "release-build.yml"
-        ).read_text(encoding="utf-8")
+        workflow = self.workflow_text()
 
         self.assertIn("PUBLISH_REQUESTED:", workflow)
         self.assertIn("PUBLISH_EXPLICIT:", workflow)
@@ -142,6 +189,16 @@ class ReleaseConfigurationTest(unittest.TestCase):
     def test_complete_signing_configuration_enables_publication(self) -> None:
         result, output, summary = self.run_signing_policy(
             explicit=False,
+            secrets={name: "configured" for name in SIGNING_SECRET_NAMES},
+        )
+
+        self.assertEqual(0, result.returncode)
+        self.assertEqual("should_publish=true\n", output)
+        self.assertEqual("", summary)
+
+    def test_explicit_publish_with_complete_credentials_enables_publication(self) -> None:
+        result, output, summary = self.run_signing_policy(
+            explicit=True,
             secrets={name: "configured" for name in SIGNING_SECRET_NAMES},
         )
 

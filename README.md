@@ -1,72 +1,170 @@
-## Language Selector Neo
+# Language Selector Neo
 
-#### This Repo is a Fork version of [Language Selector](https://github.com/VegaBobo/Language-Selector) with changes below:
+## CodeRabbit Pull Request Reviews
 
-**All the code is vibe coding with using Codex**
-- Improve the seaching experience
-   - Fix the lagging when searching.
-   - Improve the app list loading time
-   - Enter to search instead of next line 
-- Show tag on app list(Such as "System", "User", "Modified")
-   - Pin App with "Modified" tag on the top of the list
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Daniel-OS01/Language-Selector?utm_source=oss&utm_medium=github&utm_campaign=Daniel-OS01%2FLanguage-Selector&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
-- Avalible to Pin the favourite Language top   the language list by hold press the language you want to pin
+[![Build and Publish APK on Updates](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml/badge.svg)](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml)
 
-- Add Chinese Traditional
+Language Selector Neo is a fork of [VegaBobo/Language-Selector](https://github.com/VegaBobo/Language-Selector). It provides a front end for Android's per-app language APIs on devices where the system settings do not expose them.
 
----
+This fork is developed with Codex-assisted "vibe coding" and validated with automated tests, Android lint, release builds, and CI workflow checks.
 
-Language Selector allows users to set individual app languages. It tries to replicates the behavior of the "App languages" feature introduced in Android 13.
+## What's changed in this fork
 
-To use this app:
-- MUST be on Android 13 or higher, there is no compatiblity with older Android versions.
-- MUST have Shizuku.
+- Faster app loading and a more responsive search experience.
+- Search is submitted with Enter instead of inserting a new line.
+- Search history, empty-state messages, and system/modified filters.
+- App labels for `System`, `User`, and `Modified` applications.
+- Modified applications are moved toward the top of the list with navigation feedback.
+- Favorite languages can be pinned by long-pressing them.
+- Pinned languages appear at the top of the language list and in the Quick Settings tile.
+- Traditional Chinese support, with updated Japanese and Brazilian Portuguese resources.
+- Shizuku dependency resolution through Maven Central.
+- Android SDK 37.0 and Java 21 build support.
+- Hardened GitHub Actions validation, signing, artifact, and release handling.
 
-You can get this app at Releases section.
+## Requirements
+
+- Android 13 or newer (`minSdk 33`).
+- A running Shizuku manager with permission granted to Language Selector Neo.
+
+You can use either:
+
+- [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizuku), the original project.
+- [thedjchi/Shizuku](https://github.com/thedjchi/Shizuku), the fork used by this repository's maintainer.
+
+The installed manager version and the Maven client-library version are different version lines. This project uses `dev.rikka.shizuku:api` and `dev.rikka.shizuku:provider` version `13.1.5`, which matches the API embedded by `thedjchi/Shizuku` v13.7.0.
+
+## Download
+
+Published APKs are available from [GitHub Releases](https://github.com/Daniel-OS01/Language-Selector/releases).
+
+GitHub Actions may also contain unsigned validation APKs. Those artifacts prove that the project builds, but they are not published releases and are not intended for installation or distribution.
+
+## Usage
+
+1. Install and start your preferred Shizuku manager.
+2. Start Shizuku using its supported method for your device.
+3. Install Language Selector Neo from GitHub Releases.
+4. Open the app, grant the Shizuku permission, and tap **Proceed**.
+5. Select an application.
+6. Select the language that application should use.
+
+The selected application must include translations for that locale. Language Selector Neo does not translate applications; it only tells Android which supported locale the application should use.
+
+Changing the locale of unsupported or system applications can cause unexpected behavior and is not recommended.
+
+## Features
+
+### Per-app languages
+
+Set the locale for user applications and, when explicitly enabled, system applications. The app uses Android's locale-management service through Shizuku so it can manage other packages.
+
+### Search and filters
+
+Search the installed-app list, reuse recent searches, show or hide system applications, and focus on applications whose locale has already been modified.
+
+### Pinned languages
+
+Long-press a language to pin or unpin it. Pinned languages appear at the top of the language list and are available from the Quick Settings tile.
+
+### Quick Settings tile
+
+Add the Language Selector tile to change the foreground application's language quickly. The tile uses pinned languages and is unavailable until at least one language is pinned. Changing system-app languages from the tile is not supported.
+
+### Language availability
+
+The app builds its language list from `java.util.Locale.getAvailableLocales()`. This exposes many locales, including entries that individual applications may not support.
+
+## Screenshots
 
 <div>
-<img src="https://raw.githubusercontent.com/VegaBobo/Language-Selector/main/other/preview_1.jpg" alt="preview" width="200"/>
-<img src="https://raw.githubusercontent.com/VegaBobo/Language-Selector/main/other/preview_2.jpg" alt="preview" width="200"/>
+  <img src="https://raw.githubusercontent.com/VegaBobo/Language-Selector/main/other/preview_1.jpg" alt="Application list" width="200" />
+  <img src="https://raw.githubusercontent.com/VegaBobo/Language-Selector/main/other/preview_2.jpg" alt="Language selection" width="200" />
 </div>
 
-### Features
+## Building from source
 
-- Set individual app languages
-- Allows selecting language from any app **
-- Quick change languages with QSTile
+### Toolchain
 
-** Language Selector DOES NOT translate apps, it just specify a locale that will be used by application, if the desired language is supported by the app, it should be displayed as expected.
+- JDK 21.
+- Android SDK Platform 37.0.
+- Android SDK Build Tools 36.0.0.
+- The included Gradle wrapper.
 
-** Please note that changing locale for unsupported applications and system apps may cause unexpected behavior and is NOT RECOMMENDED.
+`android.compileSdk=37.0` and `android.buildTools=36.0.0` are single-sourced in `gradle.properties` and consumed by both Android modules and CI. CI installs those exact packages and verifies signed APKs with `$ANDROID_HOME/build-tools/<buildTools>/apksigner`.
 
-#### Language availability
+Local builds without `CI_VERSION_CODE` keep `versionCode=5`. CI sets `CI_VERSION_CODE` from `github.run_number`, so publishable APKs get a positive, monotonic version code that stays stable across reruns of the same workflow run.
 
-This app parses Locale (java.util.Locale) from Locale.getAvailableLocales(), consequently, numerous locales are present in the app, the language list is huge, if someone want to improve that, feel free to send a PR, because this way is pretty slow and languages aren't filtered accurately.
+Run the same validation sequence used by GitHub Actions:
 
-###  Usage
+```bash
+./gradlew --no-daemon --stacktrace testDebugUnitTest lintRelease assembleRelease
+```
 
-Before using this app, you MUST install and start Shizuku, the way this app works makes Shizuku MANDATORY, after that, you should follow this steps:
+Without release-signing environment variables, Gradle intentionally creates:
 
-1. Install "Language Selector" (check Releases)
-2. Open, grant Shizuku permissions and tap on "Proceed"
-3. Choose a app you want to select it's language.
-4. Select any language from list
-5. That is it?
+```text
+app/build/outputs/apk/release/app-release-unsigned.apk
+```
 
-#### Pinning languages
+You can also run the CI regression checks directly:
 
-You can pin languages by long-pressing on desired language, pinned languages will appear at the top of the list and will also be available in the QS tile.
+```bash
+python3 -m unittest discover -s scripts/ci -p 'test_*.py'
+python3 scripts/ci/verify_shizuku_artifacts.py
+```
 
-#### Quick tile
+The Shizuku verifier reads the version catalog, checks both configured coordinates, retries transient network failures, and fails immediately for a missing Maven artifact.
 
-You can quick change current running app language by adding a QS tile, available tile languages are the pinned ones, if no pinned language is set, then tile will be marked as Unavailable, changing system apps language from QS is also not supported.
+## CI and release behavior
 
-### Background
+The `Build and Publish APK on Updates` workflow validates relevant changes to the Android modules, Gradle configuration, CI scripts, and any file under `.github/workflows/**`. README-only changes do not start this workflow.
 
-I've made this app because MIUI doesn't seem to have app languages in Android 13 (at least on my device, running global MIUI 14/Android 13), by not having the feature, i mean, there is no option inside Settings app to change app languages individually, but since it is as Android 13 build,  there is a high change that locale service is still present, if so, we can use LocaleManager to do per-app basis locale operations.
+- Pull requests and `work` pushes run tests, lint, and a release assembly without publishing.
+- Automatic `main` pushes publish only when all signing secrets are configured.
+- If signing secrets are missing from an automatic `main` push, the workflow continues as an unsigned validation build, uploads an Actions artifact, emits a warning, and skips the GitHub Release.
+- A manual run with `publish=false` is validation-only and does not read signing secrets.
+- A manual run with `publish=true` is restricted to `main` and fails clearly if any signing secret is missing.
+- Publishable APKs are verified with the configured Build Tools `apksigner` before upload and again before release publication.
+- Releases use full-commit-SHA tags and a draft-first, rerun-safe publishing flow.
 
-Locale manager can be acessible via ADB, using "cmd locale" command, since adb has the ability to change other app languages, i've decided to make my own "front-end" for managing application locales, so i can set languages and use this feature, even if there is no UI for app languages in stock Settings app yet.
+### Release signing runbook
 
-Since ADB is required to manage other application languages, this app uses Shizuku to interact with LocaleManager APIs at privileged level, that's why Shizuku is mandatory to use this app.
+Signed publication requires these repository Actions secrets:
 
-If your device is running Android 13 or higher, and your ROM doesn't include any option related to the app languages, this app may be useful.
+- `RELEASE_KEYSTORE_BASE64`
+- `RELEASE_KEYSTORE_PASSWORD`
+- `RELEASE_KEY_ALIAS`
+- `RELEASE_KEY_PASSWORD`
+
+Provision them once outside GitHub Actions:
+
+1. Reuse the intended production keystore for `vegabobo.languageselector`, or generate one persistent RSA-4096 JKS keystore locally. Never generate the production key on an Actions runner.
+2. Keep an encrypted offline backup of the keystore and store both passwords plus the alias in a password manager.
+3. Record the public certificate SHA-256 fingerprint for later comparison with published APKs.
+4. Base64-encode the keystore and configure each secret with `gh secret set` via stdin so values never appear in shell history or command arguments.
+5. After all four secrets exist, automatic `main` pushes and manual `publish=true` runs on `main` publish a verified signed APK.
+
+Unsigned or debug-signed APKs are never published as GitHub Releases by the current workflow.
+
+### Historical certificate migration
+
+The older Releases `sha-0832269` and `sha-95bc301` were signed with different ephemeral Android Debug certificates. Neither can update the other in place, and neither can update the first APK signed by the persistent release key. Uninstall those historical builds before installing a stable-signed release.
+
+## Background
+
+Android 13 introduced per-app language preferences, but some Android distributions do not expose the feature in their Settings application even when the underlying locale service exists.
+
+Android's locale manager can be controlled through privileged APIs or ADB. Language Selector Neo uses Shizuku to access those APIs and provide a convenient interface for changing application locales without requiring the stock Settings UI.
+
+## Contributing
+
+Issues and pull requests are welcome. Before submitting a change, run the unit tests, Android lint, release assembly, and any relevant CI-script checks.
+
+Please avoid committing generated build outputs, unsigned APKs, keystores, or signing credentials.
+
+## Attribution
+
+Language Selector Neo is based on [VegaBobo/Language-Selector](https://github.com/VegaBobo/Language-Selector). See [LICENSE](LICENSE) for licensing information.

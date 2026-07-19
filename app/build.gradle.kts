@@ -8,6 +8,16 @@ plugins {
 
 val compileSdkParts = providers.gradleProperty("android.compileSdk").get().split('.', limit = 2)
 
+fun resolveVersionCode(): Int {
+    val raw = System.getenv("CI_VERSION_CODE") ?: return 5
+    val parsed = raw.toIntOrNull()
+        ?: error("CI_VERSION_CODE must be an integer from 1 to 2100000000")
+    require(parsed in 1..2_100_000_000) {
+        "CI_VERSION_CODE must be an integer from 1 to 2100000000"
+    }
+    return parsed
+}
+
 android {
     namespace = "vegabobo.languageselector"
     compileSdk {
@@ -20,7 +30,7 @@ android {
         applicationId = "vegabobo.languageselector"
         minSdk = 33
         targetSdk = 37
-        versionCode = 5
+        versionCode = resolveVersionCode()
         versionName = "1.04"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -1,13 +1,17 @@
 # Plan: Fix and harden `release-build.yml`
 
-Status: implemented and locally verified; GitHub publish and on-device smoke tests remain external.
+Status: implemented and verified through unsigned validation on GitHub; signed publication and on-device smoke tests remain external until persistent signing credentials are provisioned.
 
 ## Implementation result
 
 - Shizuku API/provider now resolve as `13.1.5` from Maven Central, matching the API embedded by `thedjchi/Shizuku` v13.7.0.
-- Both Android modules and CI consume the single `android.compileSdk=37.0` property.
-- The workflow now separates read-only validation from signed publication, pins third-party actions, validates signing inputs, verifies APK signatures, and publishes draft-first with rerun-safe behavior.
-- Repository-free unit tests cover the artifact verifier and compile-SDK configuration contract.
+- Both Android modules and CI consume `android.compileSdk=37.0` and CI also single-sources `android.buildTools=36.0.0` from `gradle.properties`.
+- The workflow now separates read-only validation from signed publication, pins third-party actions, validates signing inputs, verifies APK signatures with the exact configured Build Tools `apksigner`, and publishes draft-first with rerun-safe behavior.
+- Path filters cover `.github/workflows/**` so any workflow change runs `actionlint`/ShellCheck; README-only changes still skip the Android workflow.
+- Automatic `main` pushes soft-skip publication when secrets are missing or partial; explicit manual `publish=true` on `main` fails with the exact missing secret names.
+- CI maps `github.run_number` to `CI_VERSION_CODE` for monotonic APK version codes; local builds without that variable retain `versionCode=5`.
+- Repository-free unit tests cover the artifact verifier, compile-SDK/Build Tools contracts, workflow path coverage, and the signing-policy subprocess matrix.
+- GitHub Actions run [`29693144148`](https://github.com/Daniel-OS01/Language-Selector/actions/runs/29693144148) for commit `1cb8c72` proved the unsigned validation path: build succeeded, publish skipped, all four missing secrets were named, and exactly one `release-apk-<full-sha>` artifact was uploaded.
 - A clean Android container build with a new `GRADLE_USER_HOME` passed `testDebugUnitTest lintRelease assembleRelease`; this also exposed and fixed one invalid R8 rule and missing Japanese/Brazilian Portuguese strings.
 
 ## Outcome
@@ -16,13 +20,13 @@ Restore reliable APK builds for users running `thedjchi/Shizuku` v13.7.0, add re
 
 ## Evidence and root cause
 
-- The failing dependency is declared as `dev.rikka.shizuku:api` and `provider` in `gradle/libs.versions.toml:10,34-35` and consumed by `app/build.gradle.kts:97-98`.
+- The failing dependency is declared as `dev.rikka.shizuku:api` and `provider` in `gradle/libs.versions.toml` and consumed by `app/build.gradle.kts`.
 - `thedjchi/Shizuku` v13.7.0 is the installed manager APK version, not the Maven client-library version. Its release tag pins the `Shizuku-API` submodule at commit `37ebcd3`, whose `manifest.gradle` declares API version `13.1.5`.
 - Maven Central publishes both `dev.rikka.shizuku:api:13.1.5` and `dev.rikka.shizuku:provider:13.1.5`; it does not publish either artifact at `13.7.0`.
 - The failed run `29689196607` confirms Gradle tried the nonexistent `13.7.0` coordinate and then failed DNS lookup for `maven.rikka.app`. The earlier run `29689068280` confirms `13.1.5` resolved and advanced to Android AAR validation.
-- That next failure was corrected in source by moving both modules to compile SDK 37 (`app/build.gradle.kts:11`, `hidden_api/build.gradle.kts:7`), but the workflow still explicitly installs platform 36 (`.github/workflows/release-build.yml:43-46`) and `gradle.properties:84-85` still suppresses warnings for SDK 36.
-- The workflow currently assembles without running the existing unit tests, lint, workflow validation, or APK verification (`.github/workflows/release-build.yml:60-76`). It also grants write permission to the build job, ignores its own workflow changes, publishes from `work`, handles `release.published` by creating a separate SHA release, and silently falls back to debug signing when release secrets are absent (`app/build.gradle.kts:26-42`). The failing run showed all four signing inputs empty.
-- `.github/workflows/dependabot-auto-merge.yml:32-38` dispatches the release workflow before an auto-merge necessarily occurs even though the eventual `main` push already triggers it, creating redundant or stale builds.
+- Compile SDK was corrected to 37 via the shared `android.compileSdk` property; Build Tools are now also single-sourced as `android.buildTools=36.0.0` and passed from the build job to the checkout-free publish job.
+- The pre-fix workflow assembled without unit tests, lint, workflow validation, or APK verification; granted write permission too broadly; ignored sibling workflow changes; and published without a strict signed-only gate. Those gaps are closed in the current workflow.
+- `.github/workflows/dependabot-auto-merge.yml` previously used a ShellCheck-unsafe `read` loop; it now uses `while IFS= read -r pr; do`, and workflow-directory path filters ensure such changes are linted.
 
 ## Requirements
 
@@ -45,11 +49,11 @@ Restore reliable APK builds for users running `thedjchi/Shizuku` v13.7.0, add re
 - `python3 -m unittest` for the new dependency-verifier tests passes without third-party Python packages.
 - `./gradlew --no-daemon --stacktrace testDebugUnitTest lintRelease assembleRelease` succeeds from a clean Gradle dependency cache.
 - The workflow is valid under `actionlint`; all referenced actions are pinned to immutable commits (with version comments for Dependabot) or replaced by the preinstalled GitHub CLI.
-- A pull request changing `gradle/libs.versions.toml`, an Android module, CI scripts, or `release-build.yml` runs the verification/build job but cannot publish. A README-only change does not run it.
+- A pull request changing `gradle/libs.versions.toml`, an Android module, CI scripts, or any file under `.github/workflows/**` runs the verification/build job but cannot publish. A README-only change does not run it.
 - A `work` push builds/tests and uploads an Actions artifact but does not create a GitHub Release.
-- A `main` push fails early with a clear signing-configuration error if any of the four release secrets is absent; with all secrets present, `apksigner verify --print-certs` succeeds before publishing exactly one APK.
+- An automatic `main` push with missing or partial signing secrets succeeds as an unsigned validation build, warns with the exact missing secret names, uploads one Actions artifact, and skips GitHub Release publication. Explicit manual `publish=true` on `main` fails with those same missing names. With all secrets present, both build-side and publish-side `apksigner verify --print-certs` succeed before publishing exactly one APK.
 - Publishing uses a draft-first flow; rerunning the same SHA either completes the existing draft or reports success when the published release already contains the expected asset. It never creates a second tag/release for that SHA.
-- A final manual device smoke test installs the produced APK alongside `thedjchi/Shizuku` v13.7.0, grants Shizuku access, loads the app list, and changes one per-app language successfully.
+- A final manual device smoke test installs the produced APK alongside `thedjchi/Shizuku` v13.7.0, grants Shizuku access, loads the app list, and changes one per-app language successfully. This remains unverified until a signed APK and device access are available.
 
 ## Implementation steps
 
@@ -87,7 +91,7 @@ Changes:
 - Add one explicit project property, `android.compileSdk=37.0`, and read it through Gradle providers in both modules using AGP's minor-API DSL.
 - Keep target/min SDK semantics unchanged unless their existing values need the same deduplication; this task must not silently change supported devices or runtime behavior.
 - Remove `android.suppressUnsupportedCompileSdk=36` rather than updating the suppression, so an unsupported AGP/SDK combination fails visibly.
-- Read the compile-SDK property in the workflow, validate it is numeric, and install `platforms;android-$compileSdk`; keep an explicit compatible build-tools package only if the release build proves the runner does not provision one.
+- Read `android.compileSdk` and `android.buildTools` in the workflow, validate their formats, install `platforms;android-$compile_sdk` and `build-tools;$build_tools`, export the Build Tools version to the checkout-free publish job, and invoke the exact configured `apksigner` path in both verification sites.
 
 Proof:
 
@@ -129,8 +133,8 @@ Test/build job:
 - Default the workflow/token to `contents: read`.
 - Check out, install Java 21, use the maintained Gradle setup action for wrapper validation/caching, install the dynamically selected Android platform, and lint workflows with a checksum/digest-pinned `actionlint` release.
 - Run the new Python unit/live checks, then `./gradlew --no-daemon --stacktrace testDebugUnitTest lintRelease assembleRelease` (the project has only a debug unit-test variant).
-- On publish-capable events, validate that all four signing secrets are nonempty before the Gradle build and decode the keystore into `RUNNER_TEMP`, not `$HOME`.
-- Update `app/build.gradle.kts:26-42` so an absent CI signing config produces an unsigned validation artifact rather than silently selecting the debug key.
+- On publish-capable events, evaluate signing secrets through `scripts/ci/check_release_signing.sh`: automatic `main` soft-skips with a warning when secrets are missing/partial; explicit manual publication fails with the exact missing names. Decode the keystore into `RUNNER_TEMP`, not `$HOME`, only when `should_publish=true`.
+- Keep an absent CI signing config producing an unsigned validation artifact rather than silently selecting the debug key.
 - Assert exactly one APK was produced. Upload it as an Actions artifact with `if-no-files-found: error`; upload test/lint/Gradle problem reports on failure for diagnosis.
 
 Publish job:
@@ -178,7 +182,7 @@ GitHub verification:
 - **Maven Central is transiently unavailable:** use a bounded retry in the fast verifier and Gradle caching, but do not retry deterministic 404s or hide resolution failures.
 - **JitPack remains an external point of failure:** restrict it to the libsu group and consider a separate dependency-migration task only if libsu becomes available from a more reliable repository.
 - **Compile SDK changes drift from CI:** use one Gradle property consumed by both modules and the workflow, with no unsupported-SDK suppression.
-- **Signing secrets are currently absent:** fail publish-capable events early and clearly; validation PR/work builds remain possible without secrets, but release publication cannot proceed until all four repository secrets are configured.
+- **Signing secrets may be absent:** automatic `main` validation soft-skips publication and warns; explicit manual `publish=true` fails clearly. Release publication cannot proceed until all four repository secrets are configured with one persistent production keystore.
 - **Published GitHub Releases may be immutable:** use draft-first publication and make reruns verify existing assets instead of assuming replacement is allowed.
 - **The Gradle 10 deprecation/configuration-time warnings remain:** capture their reports and create a separate cleanup task unless they block this release; do not mix a broad Gradle modernization into this incident fix.
 - **Runtime compatibility is inferred, not fully proven by Maven metadata:** complete the on-device smoke test against `thedjchi/Shizuku` v13.7.0 before declaring end-to-end success.

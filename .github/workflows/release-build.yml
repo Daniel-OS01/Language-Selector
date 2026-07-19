@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, work]
     paths:
-      - '.github/workflows/release-build.yml'
+      - '.github/workflows/**'
       - 'app/**'
       - 'hidden_api/**'
       - 'gradle/**'
@@ -17,7 +17,7 @@ on:
   pull_request:
     branches: [main, work]
     paths:
-      - '.github/workflows/release-build.yml'
+      - '.github/workflows/**'
       - 'app/**'
       - 'hidden_api/**'
       - 'gradle/**'
@@ -50,11 +50,13 @@ jobs:
     env:
       PUBLISH_REQUESTED: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
       PUBLISH_EXPLICIT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+      CI_VERSION_CODE: ${{ github.run_number }}
     outputs:
       short_sha: ${{ steps.release_metadata.outputs.short_sha }}
       tag: ${{ steps.release_metadata.outputs.tag }}
       apk_name: ${{ steps.validate_apk.outputs.apk_name }}
       should_publish: ${{ steps.signing.outputs.should_publish }}
+      build_tools: ${{ steps.android_versions.outputs.build_tools }}
 
     steps:
       - name: Check out repository
@@ -90,21 +92,39 @@ jobs:
           actionlint
           shellcheck scripts/ci/check_release_signing.sh
 
-      - name: Read and install the configured Android platform
+      - name: Read and install configured Android platform and build tools
+        id: android_versions
         run: |
           compile_sdk=$(sed -n 's/^android\.compileSdk=//p' gradle.properties)
+          build_tools=$(sed -n 's/^android\.buildTools=//p' gradle.properties)
+          if [[ -z "$compile_sdk" || $(grep -c '^android\.compileSdk=' gradle.properties) -ne 1 ]]; then
+            echo "android.compileSdk must be declared exactly once in gradle.properties" >&2
+            exit 1
+          fi
+          if [[ -z "$build_tools" || $(grep -c '^android\.buildTools=' gradle.properties) -ne 1 ]]; then
+            echo "android.buildTools must be declared exactly once in gradle.properties" >&2
+            exit 1
+          fi
           if [[ ! "$compile_sdk" =~ ^[0-9]+\.[0-9]+$ ]]; then
             echo "android.compileSdk must be a major.minor release in gradle.properties" >&2
             exit 1
           fi
-          echo "ANDROID_COMPILE_SDK=$compile_sdk" >> "$GITHUB_ENV"
+          if [[ ! "$build_tools" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "android.buildTools must be a major.minor.patch release in gradle.properties" >&2
+            exit 1
+          fi
+          {
+            echo "ANDROID_COMPILE_SDK=$compile_sdk"
+            echo "ANDROID_BUILD_TOOLS=$build_tools"
+          } >> "$GITHUB_ENV"
+          echo "build_tools=$build_tools" >> "$GITHUB_OUTPUT"
           set +o pipefail
           yes | sdkmanager --licenses >/dev/null
           set -o pipefail
           sdkmanager \
             "platform-tools" \
             "platforms;android-$compile_sdk" \
-            "build-tools;36.0.0"
+            "build-tools;$build_tools"
 
       - name: Test the Shizuku artifact verifier
         run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
@@ -174,9 +194,9 @@ jobs:
           echo "apk_name=$apk_name" >> "$GITHUB_OUTPUT"
 
           if [[ "$SHOULD_PUBLISH" == 'true' ]]; then
-            apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)
-            if [[ -z "$apksigner" ]]; then
-              echo "Cannot publish: apksigner is not installed" >&2
+            apksigner="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS/apksigner"
+            if [[ ! -x "$apksigner" ]]; then
+              echo "Cannot publish: expected apksigner at $apksigner" >&2
               exit 1
             fi
             "$apksigner" verify --verbose --print-certs "dist/$apk_name"
@@ -215,6 +235,7 @@ jobs:
       APK_NAME: ${{ needs.build.outputs.apk_name }}
       RELEASE_TAG: ${{ needs.build.outputs.tag }}
       SHORT_SHA: ${{ needs.build.outputs.short_sha }}
+      ANDROID_BUILD_TOOLS: ${{ needs.build.outputs.build_tools }}
 
     steps:
       - name: Download verified APK
@@ -230,17 +251,22 @@ jobs:
         run: |
           apk="dist/$APK_NAME"
           [[ -s "$apk" ]] || { echo "Missing or empty APK: $apk" >&2; exit 1; }
+          [[ -n "$ANDROID_BUILD_TOOLS" ]] || { echo "Missing ANDROID_BUILD_TOOLS from build job" >&2; exit 1; }
           set +o pipefail
           yes | sdkmanager --licenses >/dev/null
           set -o pipefail
-          sdkmanager "build-tools;36.0.0" >/dev/null
-          apksigner=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -n 1)
-          [[ -n "$apksigner" ]] || { echo "apksigner is not installed" >&2; exit 1; }
+          sdkmanager "build-tools;$ANDROID_BUILD_TOOLS" >/dev/null
+          apksigner="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS/apksigner"
+          [[ -x "$apksigner" ]] || { echo "expected apksigner at $apksigner" >&2; exit 1; }
           "$apksigner" verify --verbose --print-certs "$apk"
 
       - name: Publish idempotent SHA release
         env:
           TARGET_SHA: ${{ github.sha }}
+          RELEASE_NOTES: |
+            Automated verified build for commit ${{ github.sha }}.
+
+            One-time migration: earlier releases `sha-0832269` and `sha-95bc301` used different Android Debug certificates. Uninstall those builds before installing this stable-signed APK; in-place updates from those historical APKs are not possible.
         run: |
           apk="dist/$APK_NAME"
           title="Build sha-$SHORT_SHA"
@@ -261,7 +287,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --target "$TARGET_SHA" \
               --title "$title" \
-              --notes "Automated verified build for commit $TARGET_SHA." \
+              --notes "$RELEASE_NOTES" \
               --draft
           fi
 

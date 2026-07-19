@@ -92,7 +92,8 @@ class MainScreenVm @Inject constructor(
     }
 
     private fun sortApps(apps: List<AppInfo>): List<AppInfo> =
-        apps.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
+        // ⚡ Bolt: Optimize sorting by combining into a single pass and avoiding .lowercase() allocations
+        apps.sortedWith(compareBy<AppInfo> { !it.isModified() }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
 
     fun fillListOfApps() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -212,8 +213,9 @@ class MainScreenVm @Inject constructor(
                     appsSnapshot
                 } else {
                     appsSnapshot.filter {
-                        it.pkg.lowercase().contains(normalizedQuery) ||
-                                it.name.lowercase().contains(normalizedQuery)
+                        // ⚡ Bolt: Use ignoreCase = true to prevent intermediate string allocations during filtering
+                        it.pkg.contains(normalizedQuery, ignoreCase = true) ||
+                                it.name.contains(normalizedQuery, ignoreCase = true)
                     }
                 }
 

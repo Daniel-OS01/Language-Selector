@@ -21,13 +21,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import vegabobo.languageselector.BuildConfig
+import vegabobo.languageselector.data.PrefConstants
 import java.util.Locale
 import javax.inject.Inject
-
-object PrefConstants {
-    const val PINNED_LOCALES = "pinned_locales"
-}
-
 
 @HiltViewModel
 class AppInfoVm @Inject constructor(

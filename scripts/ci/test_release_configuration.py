@@ -16,13 +16,18 @@ SIGNING_SECRET_NAMES = (
     "RELEASE_KEY_ALIAS",
     "RELEASE_KEY_PASSWORD",
 )
+VALIDATE_WORKFLOW = (
+    REPOSITORY_ROOT / ".github" / "workflows" / "release-build.yml"
+)
+PUBLISH_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "publish-apk.yml"
 
 
 class ReleaseConfigurationTest(unittest.TestCase):
-    def workflow_text(self) -> str:
-        return (
-            REPOSITORY_ROOT / ".github" / "workflows" / "release-build.yml"
-        ).read_text(encoding="utf-8")
+    def validate_workflow_text(self) -> str:
+        return VALIDATE_WORKFLOW.read_text(encoding="utf-8")
+
+    def publish_workflow_text(self) -> str:
+        return PUBLISH_WORKFLOW.read_text(encoding="utf-8")
 
     def test_compile_sdk_has_one_value_used_by_modules_and_ci(self) -> None:
         properties = (REPOSITORY_ROOT / "gradle.properties").read_text(encoding="utf-8")
@@ -38,10 +43,10 @@ class ReleaseConfigurationTest(unittest.TestCase):
             self.assertIn('providers.gradleProperty("android.compileSdk")', build_file)
             self.assertNotRegex(build_file, r"compileSdk\s*=\s*\d+")
 
-        workflow = self.workflow_text()
-        self.assertIn("android\\.compileSdk=", workflow)
-        self.assertIn('"platforms;android-$compile_sdk"', workflow)
-        self.assertNotRegex(workflow, r"platforms;android-\d")
+        for workflow in (self.validate_workflow_text(), self.publish_workflow_text()):
+            self.assertIn("android\\.compileSdk=", workflow)
+            self.assertIn('"platforms;android-$compile_sdk"', workflow)
+            self.assertNotRegex(workflow, r"platforms;android-\d")
 
     def test_build_tools_is_single_sourced_and_propagated(self) -> None:
         properties = (REPOSITORY_ROOT / "gradle.properties").read_text(encoding="utf-8")
@@ -50,48 +55,68 @@ class ReleaseConfigurationTest(unittest.TestCase):
         self.assertEqual(1, len(matches), "android.buildTools must be declared exactly once")
         self.assertRegex(matches[0], r"^\d+\.\d+\.\d+$")
 
-        workflow = self.workflow_text()
-        self.assertIn("id: android_versions", workflow)
-        self.assertIn("android\\.buildTools=", workflow)
-        self.assertIn('build_tools: ${{ steps.android_versions.outputs.build_tools }}', workflow)
-        self.assertIn('ANDROID_BUILD_TOOLS: ${{ needs.build.outputs.build_tools }}', workflow)
-        self.assertIn('"build-tools;$build_tools"', workflow)
-        self.assertIn('"build-tools;$ANDROID_BUILD_TOOLS"', workflow)
-        self.assertNotRegex(workflow, r"build-tools;\d")
+        validate = self.validate_workflow_text()
+        publish = self.publish_workflow_text()
 
+        for workflow in (validate, publish):
+            self.assertIn("id: android_versions", workflow)
+            self.assertIn("android\\.buildTools=", workflow)
+            self.assertIn(
+                "build_tools: ${{ steps.android_versions.outputs.build_tools }}", workflow
+            )
+            self.assertIn('"build-tools;$build_tools"', workflow)
+            self.assertNotRegex(workflow, r"build-tools;\d")
+
+        self.assertIn(
+            "ANDROID_BUILD_TOOLS: ${{ needs.build.outputs.build_tools }}", publish
+        )
         exact_apksigner = (
             'apksigner="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS/apksigner"'
         )
-        self.assertEqual(2, workflow.count(exact_apksigner))
-        self.assertIn('[[ -x "$apksigner" ]]', workflow)
-        self.assertNotIn("find \"$ANDROID_HOME/build-tools\"", workflow)
-        self.assertNotIn("tail -n 1", workflow)
+        self.assertEqual(2, publish.count(exact_apksigner))
+        self.assertIn('[[ -x "$apksigner" ]]', publish)
+        self.assertNotIn('find "$ANDROID_HOME/build-tools"', publish)
+        self.assertNotIn("tail -n 1", publish)
 
     def test_workflow_paths_cover_all_workflow_files(self) -> None:
-        workflow = self.workflow_text()
+        workflow = self.validate_workflow_text()
 
         self.assertEqual(2, workflow.count("'.github/workflows/**'"))
         self.assertEqual(
             2,
-            len(re.findall(r"^\s+- '\.github/workflows/\*\*'\s*$", workflow, flags=re.MULTILINE)),
+            len(
+                re.findall(
+                    r"^\s+- '\.github/workflows/\*\*'\s*$", workflow, flags=re.MULTILINE
+                )
+            ),
         )
         self.assertNotIn("'.github/workflows/release-build.yml'", workflow)
 
-    def test_ci_version_code_is_validated_and_wired(self) -> None:
-        app_build = (REPOSITORY_ROOT / "app" / "build.gradle.kts").read_text(
-            encoding="utf-8"
-        )
-        workflow = self.workflow_text()
+    def test_validation_workflow_does_not_publish(self) -> None:
+        workflow = self.validate_workflow_text()
 
-        self.assertIn('System.getenv("CI_VERSION_CODE")', app_build)
-        self.assertIn("CI_VERSION_CODE must be an integer from 1 to 2100000000", app_build)
-        self.assertIn("?: return 5", app_build)
-        self.assertIn("versionCode = resolveVersionCode()", app_build)
-        self.assertIn("CI_VERSION_CODE: ${{ github.run_number }}", workflow)
+        self.assertNotIn("PUBLISH_REQUESTED:", workflow)
+        self.assertNotIn("PUBLISH_EXPLICIT:", workflow)
+        self.assertNotIn("bash scripts/ci/check_release_signing.sh", workflow)
+        self.assertNotIn("should_publish:", workflow)
+        self.assertNotIn("Publish signed APK", workflow)
+        self.assertNotIn("gh release create", workflow)
+        self.assertIn("testDebugUnitTest lintRelease assembleRelease", workflow)
+        # Still ShellChecks the shared signing script without evaluating secrets.
+        self.assertIn("shellcheck scripts/ci/check_release_signing.sh", workflow)
 
-    def test_publish_is_main_only_and_uses_a_full_sha_tag(self) -> None:
-        workflow = self.workflow_text()
+    def test_publish_workflow_is_manual_fast_path(self) -> None:
+        workflow = self.publish_workflow_text()
 
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertNotIn("\n  push:", workflow)
+        self.assertNotIn("\n  pull_request:", workflow)
+        self.assertIn("CI_VERSION_CODE=$((GITHUB_RUN_NUMBER + 100000))", workflow)
+        self.assertIn("assembleRelease", workflow)
+        self.assertNotIn("testDebugUnitTest", workflow)
+        self.assertNotIn("lintRelease", workflow)
+        self.assertNotIn("actionlint", workflow)
+        self.assertNotIn("verify_shizuku_artifacts.py", workflow)
         self.assertIn("PUBLISH_REQUESTED:", workflow)
         self.assertIn("PUBLISH_EXPLICIT:", workflow)
         self.assertIn(
@@ -108,6 +133,20 @@ class ReleaseConfigurationTest(unittest.TestCase):
         self.assertIn("needs.build.outputs.should_publish == 'true'", workflow)
         self.assertIn('echo "tag=sha-$GITHUB_SHA"', workflow)
         self.assertNotIn('echo "tag=sha-$short_sha"', workflow)
+
+    def test_ci_version_code_is_validated_and_wired(self) -> None:
+        app_build = (REPOSITORY_ROOT / "app" / "build.gradle.kts").read_text(
+            encoding="utf-8"
+        )
+        validate = self.validate_workflow_text()
+        publish = self.publish_workflow_text()
+
+        self.assertIn('System.getenv("CI_VERSION_CODE")', app_build)
+        self.assertIn("CI_VERSION_CODE must be an integer from 1 to 2100000000", app_build)
+        self.assertIn("?: return 5", app_build)
+        self.assertIn("versionCode = resolveVersionCode()", app_build)
+        self.assertIn("CI_VERSION_CODE: ${{ github.run_number }}", validate)
+        self.assertIn("CI_VERSION_CODE=$((GITHUB_RUN_NUMBER + 100000))", publish)
 
     def run_signing_policy(
         self,

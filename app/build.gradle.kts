@@ -31,7 +31,7 @@ android {
         minSdk = 33
         targetSdk = 37
         versionCode = resolveVersionCode()
-        versionName = "1.04"
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -86,6 +86,8 @@ android {
 
 dependencies {
     testImplementation(libs.junit)
+    // Real org.json for JVM unit tests (android.jar stubs throw "not mocked").
+    testImplementation("org.json:json:20250517")
 
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)

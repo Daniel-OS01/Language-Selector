@@ -37,6 +37,7 @@ fun MainScreen(
     mainScreenVm: MainScreenVm = hiltViewModel(),
     navigateToAppScreen: (String) -> Unit,
     navigateToAbout: () -> Unit,
+    navigateToSettings: () -> Unit,
 ) {
     val uiState by mainScreenVm.uiState.collectAsState()
     val sb = remember { SnackbarHostState() }
@@ -112,6 +113,7 @@ fun MainScreen(
                                 onClickToggleDropdown = { mainScreenVm.toggleDropdown() },
                                 onToggleDropdown = { mainScreenVm.toggleDropdown() },
                                 onClickToggleSystemApps = { mainScreenVm.toggleSystemAppsVisibility() },
+                                onClickSettings = { navigateToSettings() },
                                 onClickAbout = { navigateToAbout() }
                             )
                     })

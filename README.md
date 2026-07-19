@@ -4,7 +4,8 @@
 
 ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Daniel-OS01/Language-Selector?utm_source=oss&utm_medium=github&utm_campaign=Daniel-OS01%2FLanguage-Selector&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
-[![Build and Publish APK on Updates](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml/badge.svg)](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml)
+[![Validate Android Build](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml/badge.svg)](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml)
+[![Publish APK](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/publish-apk.yml/badge.svg)](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/publish-apk.yml)
 
 Language Selector Neo is a fork of [VegaBobo/Language-Selector](https://github.com/VegaBobo/Language-Selector). It provides a front end for Android's per-app language APIs on devices where the system settings do not expose them.
 
@@ -19,10 +20,13 @@ This fork is developed with Codex-assisted "vibe coding" and validated with auto
 - Modified applications are moved toward the top of the list with navigation feedback.
 - Favorite languages can be pinned by long-pressing them.
 - Pinned languages appear at the top of the language list and in the Quick Settings tile.
+- Settings screen with named locale presets (snapshot/apply of modified apps).
+- JSON export/import of modified apps, pinned languages, and presets via the system document picker.
 - Traditional Chinese support, with updated Japanese and Brazilian Portuguese resources.
 - Shizuku dependency resolution through Maven Central.
 - Android SDK 37.0 and Java 21 build support.
 - Hardened GitHub Actions validation, signing, artifact, and release handling.
+- App version displayed as `v2.0.0` (`versionName`); `versionCode` still comes from CI.
 
 ## Requirements
 
@@ -50,6 +54,7 @@ GitHub Actions may also contain unsigned validation APKs. Those artifacts prove 
 4. Open the app, grant the Shizuku permission, and tap **Proceed**.
 5. Select an application.
 6. Select the language that application should use.
+7. Optionally open **Settings** from the main overflow menu to save presets or export/import a backup.
 
 The selected application must include translations for that locale. Language Selector Neo does not translate applications; it only tells Android which supported locale the application should use.
 
@@ -68,6 +73,14 @@ Search the installed-app list, reuse recent searches, show or hide system applic
 ### Pinned languages
 
 Long-press a language to pin or unpin it. Pinned languages appear at the top of the language list and are available from the Quick Settings tile.
+
+### Presets
+
+From **Settings**, save the current set of modified apps (package → language tag) as a named preset. Applying a preset restores those locales and clears modified apps that are not in the preset. Up to 10 presets are stored in SharedPreferences. Shizuku must be connected to save or apply.
+
+### Export and import
+
+Also in **Settings**, export a JSON backup of modified apps, pinned locale strings, and presets (`schemaVersion` 1) with the system Create Document picker. Import replaces pins and presets (when present) and applies app locales the same way as a full preset restore. Open Document selects the file; success or failure is shown with a short message.
 
 ### Quick Settings tile
 
@@ -95,7 +108,7 @@ The app builds its language list from `java.util.Locale.getAvailableLocales()`. 
 
 `android.compileSdk=37.0` and `android.buildTools=36.0.0` are single-sourced in `gradle.properties` and consumed by both Android modules and CI. CI installs those exact packages and verifies signed APKs with `$ANDROID_HOME/build-tools/<buildTools>/apksigner`.
 
-Local builds without `CI_VERSION_CODE` keep `versionCode=5`. CI sets `CI_VERSION_CODE` from `github.run_number`, so publishable APKs get a positive, monotonic version code that stays stable across reruns of the same workflow run.
+`versionName` is `2.0.0` (About shows `v2.0.0 (<versionCode>)`). Local builds without `CI_VERSION_CODE` keep `versionCode=5`. CI sets `CI_VERSION_CODE` from `github.run_number`, so publishable APKs get a positive, monotonic version code that stays stable across reruns of the same workflow run.
 
 Run the same validation sequence used by GitHub Actions:
 
@@ -120,15 +133,26 @@ The Shizuku verifier reads the version catalog, checks both configured coordinat
 
 ## CI and release behavior
 
-The `Build and Publish APK on Updates` workflow validates relevant changes to the Android modules, Gradle configuration, CI scripts, and any file under `.github/workflows/**`. README-only changes do not start this workflow.
+Two workflows cover validation and publication separately.
 
-- Pull requests and `work` pushes run tests, lint, and a release assembly without publishing.
-- Automatic `main` pushes publish only when all signing secrets are configured.
-- If signing secrets are missing from an automatic `main` push, the workflow continues as an unsigned validation build, uploads an Actions artifact, emits a warning, and skips the GitHub Release.
-- A manual run with `publish=false` is validation-only and does not read signing secrets.
-- A manual run with `publish=true` is restricted to `main` and fails clearly if any signing secret is missing.
-- Publishable APKs are verified with the configured Build Tools `apksigner` before upload and again before release publication.
-- Releases use full-commit-SHA tags and a draft-first, rerun-safe publishing flow.
+### Validate Android Build (`release-build.yml`)
+
+Runs on pull requests, `main`/`work` pushes to Android/Gradle/CI/workflow paths, and manual dispatch. README-only changes do not start it.
+
+- Runs unit tests, Android lint, workflow lint (`actionlint`/ShellCheck), Shizuku artifact checks, and `assembleRelease`.
+- Uploads one unsigned validation APK as an Actions artifact.
+- Does **not** read signing secrets or create GitHub Releases.
+
+### Publish APK (`publish-apk.yml`)
+
+Manual-only (`workflow_dispatch`) fast path for signed releases:
+
+- Runs only `assembleRelease` (no unit tests, lint, or actionlint).
+- Restricted to `main` when `publish=true`.
+- Requires all four signing secrets; fails clearly if any are missing.
+- Verifies the APK with the configured Build Tools `apksigner` before upload and again before release publication.
+- Uses full-commit-SHA tags and a draft-first, rerun-safe publishing flow.
+- Sets `CI_VERSION_CODE` to `github.run_number + 100000` so published version codes stay above earlier validation-workflow builds.
 
 ### Release signing runbook
 
@@ -145,9 +169,9 @@ Provision them once outside GitHub Actions:
 2. Keep an encrypted offline backup of the keystore and store both passwords plus the alias in a password manager.
 3. Record the public certificate SHA-256 fingerprint for later comparison with published APKs.
 4. Base64-encode the keystore and configure each secret with `gh secret set` via stdin so values never appear in shell history or command arguments.
-5. After all four secrets exist, automatic `main` pushes and manual `publish=true` runs on `main` publish a verified signed APK.
+5. After all four secrets exist, run **Actions → Publish APK → Run workflow** on `main` with `publish=true`.
 
-Unsigned or debug-signed APKs are never published as GitHub Releases by the current workflow.
+Unsigned or debug-signed APKs are never published as GitHub Releases.
 
 ### Historical certificate migration
 
@@ -162,6 +186,8 @@ Android's locale manager can be controlled through privileged APIs or ADB. Langu
 ## Contributing
 
 Issues and pull requests are welcome. Before submitting a change, run the unit tests, Android lint, release assembly, and any relevant CI-script checks.
+
+Instrumented Compose UI tests are not set up in this repository (no Compose UI test helpers or mocks). Pinning, locale-list behavior, and backup JSON encode/decode are covered by JVM unit tests such as `LocaleManagerTest` and `LocaleBackupCodecTest`.
 
 Please avoid committing generated build outputs, unsigned APKs, keystores, or signing credentials.
 

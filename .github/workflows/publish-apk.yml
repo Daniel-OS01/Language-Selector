@@ -1,0 +1,249 @@
+name: Publish APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a signed SHA release after verification
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build signed release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PUBLISH_REQUESTED: ${{ inputs.publish }}
+      PUBLISH_EXPLICIT: ${{ inputs.publish }}
+    outputs:
+      short_sha: ${{ steps.release_metadata.outputs.short_sha }}
+      tag: ${{ steps.release_metadata.outputs.tag }}
+      apk_name: ${{ steps.validate_apk.outputs.apk_name }}
+      should_publish: ${{ steps.signing.outputs.should_publish }}
+      build_tools: ${{ steps.android_versions.outputs.build_tools }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Set CI version code above prior validation builds
+        run: echo "CI_VERSION_CODE=$((GITHUB_RUN_NUMBER + 100000))" >> "$GITHUB_ENV"
+
+      - name: Set up Java
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+
+      - name: Read and install configured Android platform and build tools
+        id: android_versions
+        run: |
+          compile_sdk=$(sed -n 's/^android\.compileSdk=//p' gradle.properties)
+          build_tools=$(sed -n 's/^android\.buildTools=//p' gradle.properties)
+          if [[ -z "$compile_sdk" || $(grep -c '^android\.compileSdk=' gradle.properties) -ne 1 ]]; then
+            echo "android.compileSdk must be declared exactly once in gradle.properties" >&2
+            exit 1
+          fi
+          if [[ -z "$build_tools" || $(grep -c '^android\.buildTools=' gradle.properties) -ne 1 ]]; then
+            echo "android.buildTools must be declared exactly once in gradle.properties" >&2
+            exit 1
+          fi
+          if [[ ! "$compile_sdk" =~ ^[0-9]+\.[0-9]+$ ]]; then
+            echo "android.compileSdk must be a major.minor release in gradle.properties" >&2
+            exit 1
+          fi
+          if [[ ! "$build_tools" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "android.buildTools must be a major.minor.patch release in gradle.properties" >&2
+            exit 1
+          fi
+          {
+            echo "ANDROID_COMPILE_SDK=$compile_sdk"
+            echo "ANDROID_BUILD_TOOLS=$build_tools"
+          } >> "$GITHUB_ENV"
+          echo "build_tools=$build_tools" >> "$GITHUB_OUTPUT"
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-$compile_sdk" \
+            "build-tools;$build_tools"
+
+      - name: Reject manual publication outside main
+        if: env.PUBLISH_EXPLICIT == 'true' && github.ref != 'refs/heads/main'
+        run: |
+          echo "Manual publication is restricted to refs/heads/main; got: $GITHUB_REF" >&2
+          exit 1
+
+      - name: Evaluate release signing configuration
+        id: signing
+        if: env.PUBLISH_REQUESTED == 'true' && github.ref == 'refs/heads/main'
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: bash scripts/ci/check_release_signing.sh
+
+      - name: Decode release keystore
+        if: steps.signing.outputs.should_publish == 'true'
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          keystore="$RUNNER_TEMP/release.keystore"
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          chmod 600 "$keystore"
+          {
+            echo "RELEASE_SIGNING_KEYSTORE=$keystore"
+            echo "RELEASE_SIGNING_KEYSTORE_PASSWORD=$RELEASE_KEYSTORE_PASSWORD"
+            echo "RELEASE_SIGNING_KEY_ALIAS=$RELEASE_KEY_ALIAS"
+            echo "RELEASE_SIGNING_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
+      - name: Assemble release APK
+        run: ./gradlew --no-daemon --stacktrace assembleRelease
+
+      - name: Compute release metadata
+        id: release_metadata
+        run: |
+          short_sha=${GITHUB_SHA::7}
+          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release APK
+        id: validate_apk
+        env:
+          SHOULD_PUBLISH: ${{ steps.signing.outputs.should_publish == 'true' }}
+        run: |
+          mapfile -t apks < <(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print)
+          if (( ${#apks[@]} != 1 )); then
+            printf 'Expected exactly one release APK, found %d\n' "${#apks[@]}" >&2
+            printf '%s\n' "${apks[@]}" >&2
+            exit 1
+          fi
+
+          mkdir -p dist
+          apk_name="language-selector-${{ steps.release_metadata.outputs.short_sha }}.apk"
+          cp "${apks[0]}" "dist/$apk_name"
+          echo "apk_name=$apk_name" >> "$GITHUB_OUTPUT"
+
+          if [[ "$SHOULD_PUBLISH" == 'true' ]]; then
+            apksigner="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS/apksigner"
+            if [[ ! -x "$apksigner" ]]; then
+              echo "Cannot publish: expected apksigner at $apksigner" >&2
+              exit 1
+            fi
+            "$apksigner" verify --verbose --print-certs "dist/$apk_name"
+          fi
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-apk-${{ github.sha }}
+          path: dist/${{ steps.validate_apk.outputs.apk_name }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Upload diagnostic reports
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-diagnostics-${{ github.run_id }}
+          path: |
+            **/build/reports/**
+            **/build/test-results/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+  publish:
+    name: Publish signed APK
+    needs: build
+    if: needs.build.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      APK_NAME: ${{ needs.build.outputs.apk_name }}
+      RELEASE_TAG: ${{ needs.build.outputs.tag }}
+      SHORT_SHA: ${{ needs.build.outputs.short_sha }}
+      ANDROID_BUILD_TOOLS: ${{ needs.build.outputs.build_tools }}
+
+    steps:
+      - name: Download verified APK
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-apk-${{ github.sha }}
+          path: dist
+
+      - name: Set up Android SDK for APK verification
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+
+      - name: Verify downloaded APK signature
+        run: |
+          apk="dist/$APK_NAME"
+          [[ -s "$apk" ]] || { echo "Missing or empty APK: $apk" >&2; exit 1; }
+          [[ -n "$ANDROID_BUILD_TOOLS" ]] || { echo "Missing ANDROID_BUILD_TOOLS from build job" >&2; exit 1; }
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
+          sdkmanager "build-tools;$ANDROID_BUILD_TOOLS" >/dev/null
+          apksigner="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS/apksigner"
+          [[ -x "$apksigner" ]] || { echo "expected apksigner at $apksigner" >&2; exit 1; }
+          "$apksigner" verify --verbose --print-certs "$apk"
+
+      - name: Publish idempotent SHA release
+        env:
+          TARGET_SHA: ${{ github.sha }}
+          RELEASE_NOTES: |
+            Automated verified build for commit ${{ github.sha }}.
+
+            One-time migration: earlier releases `sha-0832269` and `sha-95bc301` used different Android Debug certificates. Uninstall those builds before installing this stable-signed APK; in-place updates from those historical APKs are not possible.
+        run: |
+          apk="dist/$APK_NAME"
+          title="Build sha-$SHORT_SHA"
+
+          if release_json=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets 2>/dev/null); then
+            is_draft=$(jq -r '.isDraft' <<< "$release_json")
+            if [[ "$is_draft" == 'false' ]]; then
+              if jq -e --arg name "$APK_NAME" '.assets[] | select(.name == $name)' <<< "$release_json" >/dev/null; then
+                echo "Release $RELEASE_TAG already contains $APK_NAME; nothing to publish."
+                exit 0
+              fi
+              echo "Published release $RELEASE_TAG exists without $APK_NAME; refusing to mutate it." >&2
+              exit 1
+            fi
+            gh release upload "$RELEASE_TAG" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$apk" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$TARGET_SHA" \
+              --title "$title" \
+              --notes "$RELEASE_NOTES" \
+              --draft
+          fi
+
+          gh release edit "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --latest

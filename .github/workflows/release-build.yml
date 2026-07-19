@@ -1,4 +1,4 @@
-name: Build and Publish APK on Updates
+name: Validate Android Build
 
 on:
   push:
@@ -28,12 +28,6 @@ on:
       - 'gradlew.bat'
       - 'scripts/ci/**'
   workflow_dispatch:
-    inputs:
-      publish:
-        description: Publish a signed SHA release after verification
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -48,14 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      PUBLISH_REQUESTED: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
-      PUBLISH_EXPLICIT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
       CI_VERSION_CODE: ${{ github.run_number }}
     outputs:
       short_sha: ${{ steps.release_metadata.outputs.short_sha }}
-      tag: ${{ steps.release_metadata.outputs.tag }}
       apk_name: ${{ steps.validate_apk.outputs.apk_name }}
-      should_publish: ${{ steps.signing.outputs.should_publish }}
       build_tools: ${{ steps.android_versions.outputs.build_tools }}
 
     steps:
@@ -132,40 +122,6 @@ jobs:
       - name: Verify configured Shizuku artifacts
         run: python3 scripts/ci/verify_shizuku_artifacts.py
 
-      - name: Reject manual publication outside main
-        if: env.PUBLISH_EXPLICIT == 'true' && github.ref != 'refs/heads/main'
-        run: |
-          echo "Manual publication is restricted to refs/heads/main; got: $GITHUB_REF" >&2
-          exit 1
-
-      - name: Evaluate release signing configuration
-        id: signing
-        if: env.PUBLISH_REQUESTED == 'true' && github.ref == 'refs/heads/main'
-        env:
-          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: bash scripts/ci/check_release_signing.sh
-
-      - name: Decode release keystore
-        if: steps.signing.outputs.should_publish == 'true'
-        env:
-          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: |
-          keystore="$RUNNER_TEMP/release.keystore"
-          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$keystore"
-          chmod 600 "$keystore"
-          {
-            echo "RELEASE_SIGNING_KEYSTORE=$keystore"
-            echo "RELEASE_SIGNING_KEYSTORE_PASSWORD=$RELEASE_KEYSTORE_PASSWORD"
-            echo "RELEASE_SIGNING_KEY_ALIAS=$RELEASE_KEY_ALIAS"
-            echo "RELEASE_SIGNING_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
-          } >> "$GITHUB_ENV"
-
       - name: Run release tests, lint, and build
         run: ./gradlew --no-daemon --stacktrace testDebugUnitTest lintRelease assembleRelease
 
@@ -174,12 +130,9 @@ jobs:
         run: |
           short_sha=${GITHUB_SHA::7}
           echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
-          echo "tag=sha-$GITHUB_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Validate release APK
         id: validate_apk
-        env:
-          SHOULD_PUBLISH: ${{ steps.signing.outputs.should_publish == 'true' }}
         run: |
           mapfile -t apks < <(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print)
           if (( ${#apks[@]} != 1 )); then
@@ -192,15 +145,6 @@ jobs:
           apk_name="language-selector-${{ steps.release_metadata.outputs.short_sha }}.apk"
           cp "${apks[0]}" "dist/$apk_name"
           echo "apk_name=$apk_name" >> "$GITHUB_OUTPUT"
-
-          if [[ "$SHOULD_PUBLISH" == 'true' ]]; then
-            apksigner="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS/apksigner"
-            if [[ ! -x "$apksigner" ]]; then
-              echo "Cannot publish: expected apksigner at $apksigner" >&2
-              exit 1
-            fi
-            "$apksigner" verify --verbose --print-certs "dist/$apk_name"
-          fi
 
       - name: Upload release APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -221,77 +165,3 @@ jobs:
             **/build/test-results/**
           if-no-files-found: ignore
           retention-days: 14
-
-  publish:
-    name: Publish signed APK
-    needs: build
-    if: needs.build.outputs.should_publish == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      APK_NAME: ${{ needs.build.outputs.apk_name }}
-      RELEASE_TAG: ${{ needs.build.outputs.tag }}
-      SHORT_SHA: ${{ needs.build.outputs.short_sha }}
-      ANDROID_BUILD_TOOLS: ${{ needs.build.outputs.build_tools }}
-
-    steps:
-      - name: Download verified APK
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: release-apk-${{ github.sha }}
-          path: dist
-
-      - name: Set up Android SDK for APK verification
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
-
-      - name: Verify downloaded APK signature
-        run: |
-          apk="dist/$APK_NAME"
-          [[ -s "$apk" ]] || { echo "Missing or empty APK: $apk" >&2; exit 1; }
-          [[ -n "$ANDROID_BUILD_TOOLS" ]] || { echo "Missing ANDROID_BUILD_TOOLS from build job" >&2; exit 1; }
-          set +o pipefail
-          yes | sdkmanager --licenses >/dev/null
-          set -o pipefail
-          sdkmanager "build-tools;$ANDROID_BUILD_TOOLS" >/dev/null
-          apksigner="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS/apksigner"
-          [[ -x "$apksigner" ]] || { echo "expected apksigner at $apksigner" >&2; exit 1; }
-          "$apksigner" verify --verbose --print-certs "$apk"
-
-      - name: Publish idempotent SHA release
-        env:
-          TARGET_SHA: ${{ github.sha }}
-          RELEASE_NOTES: |
-            Automated verified build for commit ${{ github.sha }}.
-
-            One-time migration: earlier releases `sha-0832269` and `sha-95bc301` used different Android Debug certificates. Uninstall those builds before installing this stable-signed APK; in-place updates from those historical APKs are not possible.
-        run: |
-          apk="dist/$APK_NAME"
-          title="Build sha-$SHORT_SHA"
-
-          if release_json=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets 2>/dev/null); then
-            is_draft=$(jq -r '.isDraft' <<< "$release_json")
-            if [[ "$is_draft" == 'false' ]]; then
-              if jq -e --arg name "$APK_NAME" '.assets[] | select(.name == $name)' <<< "$release_json" >/dev/null; then
-                echo "Release $RELEASE_TAG already contains $APK_NAME; nothing to publish."
-                exit 0
-              fi
-              echo "Published release $RELEASE_TAG exists without $APK_NAME; refusing to mutate it." >&2
-              exit 1
-            fi
-            gh release upload "$RELEASE_TAG" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
-          else
-            gh release create "$RELEASE_TAG" "$apk" \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$TARGET_SHA" \
-              --title "$title" \
-              --notes "$RELEASE_NOTES" \
-              --draft
-          fi
-
-          gh release edit "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --draft=false \
-            --latest

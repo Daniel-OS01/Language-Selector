@@ -24,6 +24,7 @@ import vegabobo.languageselector.BuildConfig
 import vegabobo.languageselector.IUserService
 import vegabobo.languageselector.RootReceivedListener
 import vegabobo.languageselector.dao.AppInfoDb
+import vegabobo.languageselector.data.AppListRefreshBus
 import vegabobo.languageselector.service.UserServiceProvider
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -32,7 +33,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MainScreenVm @Inject constructor(
     val app: Application,
-    appInfoDb: AppInfoDb
+    appInfoDb: AppInfoDb,
+    private val refreshBus: AppListRefreshBus,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MainScreenState())
     val uiState: StateFlow<MainScreenState> = _uiState.asStateFlow()
@@ -68,6 +70,17 @@ class MainScreenVm @Inject constructor(
     }
 
     init {
+        fillListOfApps()
+        viewModelScope.launch {
+            refreshBus.requests.collect {
+                refreshFromSystem()
+            }
+        }
+    }
+
+    fun refreshFromSystem() {
+        appInfoCache.clear()
+        _uiState.update { it.copy(isLoading = true) }
         fillListOfApps()
     }
 

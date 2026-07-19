@@ -9,7 +9,7 @@ import android.service.quicksettings.TileService
 import android.util.Log
 import rikka.shizuku.Shizuku
 import vegabobo.languageselector.service.UserServiceProvider
-import vegabobo.languageselector.ui.screen.appinfo.PrefConstants
+import vegabobo.languageselector.data.PrefConstants
 import vegabobo.languageselector.ui.screen.appinfo.SingleLocale
 import vegabobo.languageselector.ui.screen.appinfo.capDisplayName
 import vegabobo.languageselector.ui.screen.appinfo.parseSetLangs

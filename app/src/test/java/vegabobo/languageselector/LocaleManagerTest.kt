@@ -21,18 +21,23 @@ class LocaleManagerTest {
     }
 
     @Test
-    fun `first available locale for a language is present in its region`() {
-        val firstLocale = Locale.getAvailableLocales().first()
-        val language = firstLocale.getDisplayLanguage(firstLocale).replaceFirstChar {
-            it.uppercaseChar()
+    fun `every available locale is present in its language region`() {
+        val regionsByLanguage = LocaleManager().localeList.associateBy { it.language }
+
+        Locale.getAvailableLocales().forEach { locale ->
+            val language = locale.getDisplayLanguage(locale).replaceFirstChar {
+                it.uppercaseChar()
+            }
+            val languageTag = locale.toLanguageTag()
+            val region = regionsByLanguage[language]
+            assertTrue(
+                "Expected a region for language $language",
+                region != null
+            )
+            assertTrue(
+                "Expected $languageTag to be present for $language",
+                region!!.locales.any { it.languageTag == languageTag }
+            )
         }
-        val languageTag = firstLocale.toLanguageTag()
-
-        val region = LocaleManager().localeList.first { it.language == language }
-
-        assertTrue(
-            "Expected $languageTag to be present for $language",
-            region.locales.any { it.languageTag == languageTag }
-        )
     }
 }

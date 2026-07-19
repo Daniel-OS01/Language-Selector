@@ -22,7 +22,7 @@ jobs:
             --author "dependabot[bot]" \
             --state open \
             --json url \
-            --jq '.[].url' | while read pr; do
+            --jq '.[].url' | while IFS= read -r pr; do
               gh pr merge --repo "$GITHUB_REPOSITORY" --auto --squash "$pr"
             done
         env:

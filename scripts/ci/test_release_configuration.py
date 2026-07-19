@@ -39,6 +39,14 @@ class ReleaseConfigurationTest(unittest.TestCase):
         self.assertIn('echo "tag=sha-$GITHUB_SHA"', workflow)
         self.assertNotIn('echo "tag=sha-$short_sha"', workflow)
 
+    def test_dependabot_loop_reads_urls_without_backslash_processing(self) -> None:
+        workflow = (
+            REPOSITORY_ROOT / ".github" / "workflows" / "dependabot-auto-merge.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("while IFS= read -r pr; do", workflow)
+        self.assertNotRegex(workflow, r"while\s+read\s+pr;")
+
 
 if __name__ == "__main__":
     unittest.main()

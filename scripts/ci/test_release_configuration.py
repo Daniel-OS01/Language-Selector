@@ -20,6 +20,7 @@ VALIDATE_WORKFLOW = (
     REPOSITORY_ROOT / ".github" / "workflows" / "release-build.yml"
 )
 PUBLISH_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "publish-apk.yml"
+VERSION_SCRIPT = REPOSITORY_ROOT / "scripts" / "ci" / "resolve_next_version.sh"
 
 
 class ReleaseConfigurationTest(unittest.TestCase):
@@ -102,16 +103,22 @@ class ReleaseConfigurationTest(unittest.TestCase):
         self.assertNotIn("Publish signed APK", workflow)
         self.assertNotIn("gh release create", workflow)
         self.assertIn("testDebugUnitTest lintRelease assembleRelease", workflow)
-        # Still ShellChecks the shared signing script without evaluating secrets.
         self.assertIn("shellcheck scripts/ci/check_release_signing.sh", workflow)
+        self.assertIn("shellcheck scripts/ci/resolve_next_version.sh", workflow)
 
-    def test_publish_workflow_is_manual_fast_path(self) -> None:
+    def test_publish_workflow_uses_semver_on_push_and_dispatch(self) -> None:
         workflow = self.publish_workflow_text()
 
         self.assertIn("workflow_dispatch:", workflow)
-        self.assertNotIn("\n  push:", workflow)
+        self.assertIn("\n  push:", workflow)
+        self.assertIn("branches: [main]", workflow)
+        self.assertIn("scripts/ci/**", workflow)
         self.assertNotIn("\n  pull_request:", workflow)
-        self.assertIn("CI_VERSION_CODE=$((GITHUB_RUN_NUMBER + 100000))", workflow)
+        self.assertIn("bash scripts/ci/resolve_next_version.sh", workflow)
+        self.assertIn("CI_VERSION_NAME=", workflow)
+        self.assertIn("fetch-depth: 0", workflow)
+        self.assertIn("bump:", workflow)
+        self.assertIn("- major", workflow)
         self.assertIn("assembleRelease", workflow)
         self.assertNotIn("testDebugUnitTest", workflow)
         self.assertNotIn("lintRelease", workflow)
@@ -131,8 +138,10 @@ class ReleaseConfigurationTest(unittest.TestCase):
             workflow,
         )
         self.assertIn("needs.build.outputs.should_publish == 'true'", workflow)
-        self.assertIn('echo "tag=sha-$GITHUB_SHA"', workflow)
-        self.assertNotIn('echo "tag=sha-$short_sha"', workflow)
+        self.assertIn("language-selector-v${VERSION_NAME}-${SHORT_SHA}.apk", workflow)
+        self.assertIn("Publish idempotent SemVer release", workflow)
+        self.assertNotIn('echo "tag=sha-$GITHUB_SHA"', workflow)
+        self.assertNotIn("CI_VERSION_CODE=$((GITHUB_RUN_NUMBER + 100000))", workflow)
 
     def test_ci_version_code_is_validated_and_wired(self) -> None:
         app_build = (REPOSITORY_ROOT / "app" / "build.gradle.kts").read_text(
@@ -142,11 +151,143 @@ class ReleaseConfigurationTest(unittest.TestCase):
         publish = self.publish_workflow_text()
 
         self.assertIn('System.getenv("CI_VERSION_CODE")', app_build)
+        self.assertIn('System.getenv("CI_VERSION_NAME") ?: "2.0.0"', app_build)
         self.assertIn("CI_VERSION_CODE must be an integer from 1 to 2100000000", app_build)
         self.assertIn("?: return 5", app_build)
         self.assertIn("versionCode = resolveVersionCode()", app_build)
         self.assertIn("CI_VERSION_CODE: ${{ github.run_number }}", validate)
-        self.assertIn("CI_VERSION_CODE=$((GITHUB_RUN_NUMBER + 100000))", publish)
+        self.assertIn("CI_VERSION_NAME=${{ steps.resolve_version.outputs.version_name }}", publish)
+        self.assertIn("CI_VERSION_CODE=${{ steps.resolve_version.outputs.version_code }}", publish)
+
+    def parse_resolver_output(self, text: str) -> dict[str, str]:
+        values: dict[str, str] = {}
+        for line in text.splitlines():
+            if "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            values[key] = value
+        return values
+
+    def run_version_resolver(
+        self,
+        *,
+        repo: Path,
+        sha: str,
+        bump: str = "minor",
+        fallback: str = "2.0.0",
+    ) -> dict[str, str]:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "github-output"
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "BUMP": bump,
+                    "GITHUB_SHA": sha,
+                    "FALLBACK_VERSION": fallback,
+                    "GITHUB_OUTPUT": str(output_path),
+                }
+            )
+            result = subprocess.run(
+                ["bash", str(VERSION_SCRIPT)],
+                check=False,
+                capture_output=True,
+                cwd=repo,
+                env=environment,
+                text=True,
+            )
+            self.assertEqual(
+                0,
+                result.returncode,
+                msg=f"stdout={result.stdout!r} stderr={result.stderr!r}",
+            )
+            printed = self.parse_resolver_output(result.stdout)
+            written = (
+                self.parse_resolver_output(output_path.read_text(encoding="utf-8"))
+                if output_path.exists()
+                else {}
+            )
+            self.assertEqual(printed, written)
+            return printed
+
+    def init_git_repo(self) -> tuple[Path, str]:
+        repo = Path(tempfile.mkdtemp(prefix="semver-repo-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(repo, ignore_errors=True))
+        commands = [
+            ["git", "init"],
+            ["git", "config", "user.email", "ci@example.com"],
+            ["git", "config", "user.name", "CI"],
+            ["git", "commit", "--allow-empty", "-m", "initial"],
+        ]
+        for command in commands:
+            subprocess.run(command, check=True, cwd=repo, capture_output=True, text=True)
+        sha = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=repo, text=True
+        ).strip()
+        return repo, sha
+
+    def test_resolve_next_version_from_fallback_is_minor_bump(self) -> None:
+        repo, sha = self.init_git_repo()
+        # Historical SHA-style tags must not affect SemVer math.
+        subprocess.run(
+            ["git", "tag", "sha-deadbeef"],
+            check=True,
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
+
+        values = self.run_version_resolver(repo=repo, sha=sha, bump="minor")
+
+        self.assertEqual("2.1.0", values["version_name"])
+        self.assertEqual("2001000", values["version_code"])
+        self.assertEqual("v2.1.0", values["tag"])
+        self.assertEqual("false", values["reused"])
+
+    def test_resolve_next_version_minor_and_major_from_latest_tag(self) -> None:
+        repo, sha = self.init_git_repo()
+        subprocess.run(
+            ["git", "tag", "v2.1.0"],
+            check=True,
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
+        # Move HEAD forward so the existing tag is not considered "this SHA".
+        subprocess.run(
+            ["git", "commit", "--allow-empty", "-m", "next"],
+            check=True,
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
+        next_sha = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=repo, text=True
+        ).strip()
+
+        minor = self.run_version_resolver(repo=repo, sha=next_sha, bump="minor")
+        self.assertEqual("2.2.0", minor["version_name"])
+        self.assertEqual("2002000", minor["version_code"])
+
+        major = self.run_version_resolver(repo=repo, sha=next_sha, bump="major")
+        self.assertEqual("3.0.0", major["version_name"])
+        self.assertEqual("3000000", major["version_code"])
+
+    def test_resolve_next_version_reuses_existing_tag_for_sha(self) -> None:
+        repo, sha = self.init_git_repo()
+        subprocess.run(
+            ["git", "tag", "v2.3.0"],
+            check=True,
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
+
+        values = self.run_version_resolver(repo=repo, sha=sha, bump="major")
+
+        self.assertEqual("2.3.0", values["version_name"])
+        self.assertEqual("2003000", values["version_code"])
+        self.assertEqual("v2.3.0", values["tag"])
+        self.assertEqual("true", values["reused"])
 
     def run_signing_policy(
         self,

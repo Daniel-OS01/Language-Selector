@@ -81,6 +81,7 @@ jobs:
         run: |
           actionlint
           shellcheck scripts/ci/check_release_signing.sh
+          shellcheck scripts/ci/resolve_next_version.sh
 
       - name: Read and install configured Android platform and build tools
         id: android_versions

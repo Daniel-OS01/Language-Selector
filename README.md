@@ -26,7 +26,7 @@ This fork is developed with Codex-assisted "vibe coding" and validated with auto
 - Shizuku dependency resolution through Maven Central.
 - Android SDK 37.0 and Java 21 build support.
 - Hardened GitHub Actions validation, signing, artifact, and release handling.
-- App version displayed as `v2.0.0` (`versionName`); `versionCode` still comes from CI.
+- App version displayed as SemVer (`vX.Y.Z`); published `versionCode` is derived from that SemVer.
 
 ## Requirements
 
@@ -108,7 +108,7 @@ The app builds its language list from `java.util.Locale.getAvailableLocales()`. 
 
 `android.compileSdk=37.0` and `android.buildTools=36.0.0` are single-sourced in `gradle.properties` and consumed by both Android modules and CI. CI installs those exact packages and verifies signed APKs with `$ANDROID_HOME/build-tools/<buildTools>/apksigner`.
 
-`versionName` is `2.0.0` (About shows `v2.0.0 (<versionCode>)`). Local builds without `CI_VERSION_CODE` keep `versionCode=5`. CI sets `CI_VERSION_CODE` from `github.run_number`, so publishable APKs get a positive, monotonic version code that stays stable across reruns of the same workflow run.
+`versionName` defaults to `2.0.0` locally (About shows `v2.0.0 (<versionCode>)`). Local builds without `CI_VERSION_CODE` keep `versionCode=5`. Published releases set both from SemVer: `CI_VERSION_NAME` and `CI_VERSION_CODE = major*1_000_000 + minor*1_000 + patch`. Validation builds still use `github.run_number` for unsigned artifacts only.
 
 Run the same validation sequence used by GitHub Actions:
 
@@ -145,14 +145,17 @@ Runs on pull requests, `main`/`work` pushes to Android/Gradle/CI/workflow paths,
 
 ### Publish APK (`publish-apk.yml`)
 
-Manual-only (`workflow_dispatch`) fast path for signed releases:
+Signed SemVer releases on path-filtered pushes to `main`, plus manual dispatch:
 
 - Runs only `assembleRelease` (no unit tests, lint, or actionlint).
-- Restricted to `main` when `publish=true`.
-- Requires all four signing secrets; fails clearly if any are missing.
+- **Push to `main`:** always bumps **minor** from the latest `v*` tag (ignores historical `sha-*` tags) and publishes when signing secrets are present; soft-skips publication if secrets are missing.
+- **Manual dispatch:** `bump` is `minor` (default) or `major`; only this path can raise the major version. `publish=true` fails clearly if signing secrets are missing.
+- Restricted to `main` when publishing.
+- Requires all four signing secrets to create a GitHub Release.
 - Verifies the APK with the configured Build Tools `apksigner` before upload and again before release publication.
-- Uses full-commit-SHA tags and a draft-first, rerun-safe publishing flow.
-- Sets `CI_VERSION_CODE` to `github.run_number + 100000` so published version codes stay above earlier validation-workflow builds.
+- Tags releases as `vMAJOR.MINOR.PATCH` (for example `v2.1.0`), with draft-first, rerun-safe publishing. Rerunning the same commit reuses an existing SemVer tag for that SHA.
+- Sets `CI_VERSION_NAME` / `CI_VERSION_CODE` from the resolver (`major*1000000 + minor*1000 + patch`).
+- If no `v*` tags exist yet, treats `2.0.0` as the last released version so the first publish becomes `v2.1.0`.
 
 ### Release signing runbook
 
@@ -169,7 +172,7 @@ Provision them once outside GitHub Actions:
 2. Keep an encrypted offline backup of the keystore and store both passwords plus the alias in a password manager.
 3. Record the public certificate SHA-256 fingerprint for later comparison with published APKs.
 4. Base64-encode the keystore and configure each secret with `gh secret set` via stdin so values never appear in shell history or command arguments.
-5. After all four secrets exist, run **Actions → Publish APK → Run workflow** on `main` with `publish=true`.
+5. After all four secrets exist, either push a path-filtered change to `main` (minor bump) or run **Actions → Publish APK → Run workflow** on `main` with `publish=true` and `bump=minor` or `bump=major`.
 
 Unsigned or debug-signed APKs are never published as GitHub Releases.
 

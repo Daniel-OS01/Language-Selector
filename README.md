@@ -1,11 +1,8 @@
 # Language Selector Neo
 
-## CodeRabbit Pull Request Reviews
-
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Daniel-OS01/Language-Selector?utm_source=oss&utm_medium=github&utm_campaign=Daniel-OS01%2FLanguage-Selector&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
-
 [![Validate Android Build](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml/badge.svg)](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml)
-[![Publish APK](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/publish-apk.yml/badge.svg)](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/publish-apk.yml)
+[![Publish APK](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/publish-apk.yml/badge.svg)](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/publish-apk.yml) ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Daniel-OS01/Language-Selector?utm_source=oss&utm_medium=github&utm_campaign=Daniel-OS01%2FLanguage-Selector&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+
 
 Language Selector Neo is a fork of [VegaBobo/Language-Selector](https://github.com/VegaBobo/Language-Selector). It provides a front end for Android's per-app language APIs on devices where the system settings do not expose them.
 

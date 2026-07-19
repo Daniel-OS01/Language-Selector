@@ -48,11 +48,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      SHOULD_PUBLISH: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)) }}
+      PUBLISH_REQUESTED: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+      PUBLISH_EXPLICIT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
     outputs:
       short_sha: ${{ steps.release_metadata.outputs.short_sha }}
       tag: ${{ steps.release_metadata.outputs.tag }}
       apk_name: ${{ steps.validate_apk.outputs.apk_name }}
+      should_publish: ${{ steps.signing.outputs.should_publish }}
 
     steps:
       - name: Check out repository
@@ -83,8 +85,10 @@ jobs:
           tar --extract --gzip --file "$archive" --directory "$RUNNER_TEMP" actionlint
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
-      - name: Lint GitHub Actions workflows
-        run: actionlint
+      - name: Lint GitHub Actions workflows and CI shell
+        run: |
+          actionlint
+          shellcheck scripts/ci/check_release_signing.sh
 
       - name: Read and install the configured Android platform
         run: |
@@ -108,26 +112,24 @@ jobs:
       - name: Verify configured Shizuku artifacts
         run: python3 scripts/ci/verify_shizuku_artifacts.py
 
-      - name: Validate release signing configuration
-        if: env.SHOULD_PUBLISH == 'true'
+      - name: Reject manual publication outside main
+        if: env.PUBLISH_EXPLICIT == 'true' && github.ref != 'refs/heads/main'
+        run: |
+          echo "Manual publication is restricted to refs/heads/main; got: $GITHUB_REF" >&2
+          exit 1
+
+      - name: Evaluate release signing configuration
+        id: signing
+        if: env.PUBLISH_REQUESTED == 'true' && github.ref == 'refs/heads/main'
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: |
-          missing=()
-          [[ -n "$RELEASE_KEYSTORE_BASE64" ]] || missing+=(RELEASE_KEYSTORE_BASE64)
-          [[ -n "$RELEASE_KEYSTORE_PASSWORD" ]] || missing+=(RELEASE_KEYSTORE_PASSWORD)
-          [[ -n "$RELEASE_KEY_ALIAS" ]] || missing+=(RELEASE_KEY_ALIAS)
-          [[ -n "$RELEASE_KEY_PASSWORD" ]] || missing+=(RELEASE_KEY_PASSWORD)
-          if (( ${#missing[@]} > 0 )); then
-            printf 'Cannot publish: missing GitHub Actions secrets: %s\n' "${missing[*]}" >&2
-            exit 1
-          fi
+        run: bash scripts/ci/check_release_signing.sh
 
       - name: Decode release keystore
-        if: env.SHOULD_PUBLISH == 'true'
+        if: steps.signing.outputs.should_publish == 'true'
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
@@ -156,6 +158,8 @@ jobs:
 
       - name: Validate release APK
         id: validate_apk
+        env:
+          SHOULD_PUBLISH: ${{ steps.signing.outputs.should_publish == 'true' }}
         run: |
           mapfile -t apks < <(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print)
           if (( ${#apks[@]} != 1 )); then
@@ -201,9 +205,7 @@ jobs:
   publish:
     name: Publish signed APK
     needs: build
-    if: >-
-      github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish))
+    if: needs.build.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

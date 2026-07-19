@@ -244,7 +244,7 @@ class ReleaseConfigurationTest(unittest.TestCase):
         self.assertEqual("false", values["reused"])
 
     def test_resolve_next_version_minor_and_major_from_latest_tag(self) -> None:
-        repo, sha = self.init_git_repo()
+        repo, _ = self.init_git_repo()
         subprocess.run(
             ["git", "tag", "v2.1.0"],
             check=True,
@@ -271,6 +271,49 @@ class ReleaseConfigurationTest(unittest.TestCase):
         major = self.run_version_resolver(repo=repo, sha=next_sha, bump="major")
         self.assertEqual("3.0.0", major["version_name"])
         self.assertEqual("3000000", major["version_code"])
+
+    def test_resolve_next_version_rejects_component_overflow(self) -> None:
+        repo, _ = self.init_git_repo()
+        subprocess.run(
+            ["git", "tag", "v1.999.0"],
+            check=True,
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            ["git", "commit", "--allow-empty", "-m", "next"],
+            check=True,
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
+        next_sha = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=repo, text=True
+        ).strip()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "github-output"
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "BUMP": "minor",
+                    "GITHUB_SHA": next_sha,
+                    "FALLBACK_VERSION": "2.0.0",
+                    "GITHUB_OUTPUT": str(output_path),
+                }
+            )
+            result = subprocess.run(
+                ["bash", str(VERSION_SCRIPT)],
+                check=False,
+                capture_output=True,
+                cwd=repo,
+                env=environment,
+                text=True,
+            )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("out of range", result.stderr)
 
     def test_resolve_next_version_reuses_existing_tag_for_sha(self) -> None:
         repo, sha = self.init_git_repo()

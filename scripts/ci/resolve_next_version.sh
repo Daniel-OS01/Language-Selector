@@ -43,7 +43,15 @@ version_code_from() {
   local version=$1
   local major minor patch
   IFS=. read -r major minor patch <<< "$version"
-  printf '%s\n' "$((major * 1000000 + minor * 1000 + patch))"
+  if [[ ! "$major" =~ ^[0-9]+$ || ! "$minor" =~ ^[0-9]+$ || ! "$patch" =~ ^[0-9]+$ ]]; then
+    printf 'Invalid SemVer components in %s\n' "$version" >&2
+    return 1
+  fi
+  if (( 10#$major >= 1000 || 10#$minor >= 1000 || 10#$patch >= 1000 )); then
+    printf 'SemVer component out of range (>=1000) in %s\n' "$version" >&2
+    return 1
+  fi
+  printf '%s\n' "$((10#$major * 1000000 + 10#$minor * 1000 + 10#$patch))"
 }
 
 list_semver_tags() {

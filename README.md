@@ -123,6 +123,10 @@ Built from `Locale.getAvailableLocales()` — many entries may not be supported 
 
 ## 🖼️ Screenshots
 
+<div>
+  <img src="https://raw.githubusercontent.com/VegaBobo/Language-Selector/main/other/preview_1.jpg" alt="Application list" width="200" />
+  <img src="https://raw.githubusercontent.com/VegaBobo/Language-Selector/main/other/preview_2.jpg" alt="Language selection" width="200" />
+</div>
 
 
 ---

@@ -27,6 +27,9 @@ object PrefConstants {
 
 object LocaleBackupLimits {
     const val MAX_PRESETS = 10
+    const val MAX_APPS = 2_000
+    const val MAX_PINNED = 500
+    const val MAX_JSON_CHARS = 1_000_000
 }
 
 /**

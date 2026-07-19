@@ -33,6 +33,8 @@ Neo example: `thedjchi/Shizuku` **v13.7.0** embeds Shizuku-API **13.1.5** → de
 for (pkg in packages) {
     try {
         service.setSomething(pkg, value)
+    } catch (e: CancellationException) {
+        throw e // cooperative cancel must not be swallowed
     } catch (_: Exception) {
         // continue — one failure must not abort the batch
     }

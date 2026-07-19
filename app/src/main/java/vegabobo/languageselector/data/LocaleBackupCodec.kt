@@ -20,18 +20,33 @@ object LocaleBackupCodec {
     }
 
     fun decodeBackup(json: String): LocaleBackup {
+        require(json.length <= LocaleBackupLimits.MAX_JSON_CHARS) {
+            "Backup JSON exceeds ${LocaleBackupLimits.MAX_JSON_CHARS} characters"
+        }
         try {
             val root = JSONObject(json)
             val schema = root.optInt("schemaVersion", -1)
             require(schema == SCHEMA_VERSION) {
                 "Unsupported backup schemaVersion: $schema"
             }
+            val apps = decodeApps(root.optJSONArray("apps"))
+            val pinnedLocales = decodeStringList(root.optJSONArray("pinnedLocales"))
+            val presets = decodePresets(root.optJSONArray("presets"))
+            require(apps.size <= LocaleBackupLimits.MAX_APPS) {
+                "Backup apps exceed ${LocaleBackupLimits.MAX_APPS}"
+            }
+            require(pinnedLocales.size <= LocaleBackupLimits.MAX_PINNED) {
+                "Backup pinnedLocales exceed ${LocaleBackupLimits.MAX_PINNED}"
+            }
+            require(presets.size <= LocaleBackupLimits.MAX_PRESETS) {
+                "Backup presets exceed ${LocaleBackupLimits.MAX_PRESETS}"
+            }
             return LocaleBackup(
                 schemaVersion = schema,
                 exportedAt = root.optLong("exportedAt", 0L),
-                apps = decodeApps(root.optJSONArray("apps")),
-                pinnedLocales = decodeStringList(root.optJSONArray("pinnedLocales")),
-                presets = decodePresets(root.optJSONArray("presets")),
+                apps = apps,
+                pinnedLocales = pinnedLocales,
+                presets = presets,
             )
         } catch (e: JSONException) {
             throw IllegalArgumentException("Invalid backup JSON", e)

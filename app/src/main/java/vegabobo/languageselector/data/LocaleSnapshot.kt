@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.LocaleList
+import kotlinx.coroutines.CancellationException
 import vegabobo.languageselector.BuildConfig
 import vegabobo.languageselector.IUserService
 import vegabobo.languageselector.service.UserServiceProvider
@@ -64,6 +65,8 @@ class LocaleSnapshot @Inject constructor(
             val localeList = LocaleList(Locale.forLanguageTag(entry.languageTag))
             try {
                 service.setApplicationLocales(entry.packageName, localeList)
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 // Continue applying remaining packages.
             }
@@ -72,6 +75,8 @@ class LocaleSnapshot @Inject constructor(
         for (pkg in LocaleApplyPlan.packagesToClear(currentlyModified, desired.keys)) {
             try {
                 service.setApplicationLocales(pkg, LocaleList.getEmptyLocaleList())
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 // Continue clearing remaining packages.
             }

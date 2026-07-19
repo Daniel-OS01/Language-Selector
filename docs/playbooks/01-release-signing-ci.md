@@ -67,4 +67,11 @@ PUBLISH_EXPLICIT=false GITHUB_REF=refs/heads/main \
 python3 -m unittest discover -s scripts/ci -p 'test_*.py'
 ```
 
-After a real publish: `apksigner verify --print-certs path/to.apk` and compare cert SHA-256 to your recorded fingerprint.
+After a real publish, verify with the **pinned** Build Tools binary (`ANDROID_BUILD_TOOLS` must match `gradle.properties` / the publish job), using the exact APK path (not a bare `apksigner` on `PATH`):
+
+```bash
+"$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS/apksigner" verify --verbose --print-certs \
+  "language-selector-v${VERSION_NAME}-${SHORT_SHA}.apk"
+```
+
+Compare cert SHA-256 to your recorded fingerprint.

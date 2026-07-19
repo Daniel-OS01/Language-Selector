@@ -12,6 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -143,6 +144,7 @@ class MainScreenVm @Inject constructor(
 
             val sortedList = sortApps(parsed)
             val searchQuery = _uiState.value.searchTextFieldValue
+            ensureActive()
             _uiState.value.listOfApps.clear()
             _uiState.value.listOfApps.addAll(sortedList)
             if (searchQuery.isBlank()) {

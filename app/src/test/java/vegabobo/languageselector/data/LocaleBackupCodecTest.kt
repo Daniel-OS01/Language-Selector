@@ -106,4 +106,66 @@ class LocaleBackupCodecTest {
         assertEquals(emptyList<LocalePreset>(), LocaleBackupCodec.decodePresets(null))
         assertEquals(emptyList<LocalePreset>(), LocaleBackupCodec.decodePresets(JSONArray()))
     }
+
+    @Test
+    fun `decodeBackup rejects oversized json payload`() {
+        val huge = "x".repeat(LocaleBackupLimits.MAX_JSON_CHARS + 1)
+        try {
+            LocaleBackupCodec.decodeBackup(huge)
+            throw AssertionError("Expected oversize JSON to fail")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("exceeds"))
+        }
+    }
+
+    @Test
+    fun `decodeBackup rejects too many apps`() {
+        val apps = JSONArray()
+        repeat(LocaleBackupLimits.MAX_APPS + 1) { i ->
+            apps.put(
+                JSONObject()
+                    .put("packageName", "com.example.app$i")
+                    .put("languageTag", "en")
+            )
+        }
+        val json = JSONObject()
+            .put("schemaVersion", 1)
+            .put("exportedAt", 1L)
+            .put("apps", apps)
+            .put("pinnedLocales", JSONArray())
+            .put("presets", JSONArray())
+            .toString()
+        try {
+            LocaleBackupCodec.decodeBackup(json)
+            throw AssertionError("Expected too many apps to fail")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("apps exceed"))
+        }
+    }
+
+    @Test
+    fun `decodeBackup rejects too many presets`() {
+        val presets = JSONArray()
+        repeat(LocaleBackupLimits.MAX_PRESETS + 1) { i ->
+            presets.put(
+                JSONObject()
+                    .put("id", "id$i")
+                    .put("name", "Preset $i")
+                    .put("createdAt", i.toLong())
+            )
+        }
+        val json = JSONObject()
+            .put("schemaVersion", 1)
+            .put("exportedAt", 1L)
+            .put("apps", JSONArray())
+            .put("pinnedLocales", JSONArray())
+            .put("presets", presets)
+            .toString()
+        try {
+            LocaleBackupCodec.decodeBackup(json)
+            throw AssertionError("Expected too many presets to fail")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("presets exceed"))
+        }
+    }
 }

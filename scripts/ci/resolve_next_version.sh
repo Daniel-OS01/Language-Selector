@@ -17,16 +17,18 @@ fallback=${FALLBACK_VERSION:-2.0.0}
 sha=${GITHUB_SHA:?GITHUB_SHA must be set}
 output_file=${GITHUB_OUTPUT:-}
 
-semver_re='^[0-9]+\.[0-9]+\.[0-9]+$'
-tag_re='^v[0-9]+\.[0-9]+\.[0-9]+$'
+# Canonical component: 0 or 1–999 without leading zeros.
+comp='(0|[1-9][0-9]{0,2})'
+semver_re="^${comp}\\.${comp}\\.${comp}$"
+tag_re="^v${comp}\\.${comp}\\.${comp}$"
 
 if [[ "$bump" != "minor" && "$bump" != "major" ]]; then
   printf 'BUMP must be minor or major, got: %s\n' "$bump" >&2
   exit 1
 fi
 
-if [[ ! "$fallback" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  printf 'FALLBACK_VERSION must be MAJOR.MINOR.PATCH, got: %s\n' "$fallback" >&2
+if [[ ! "$fallback" =~ $semver_re ]]; then
+  printf 'FALLBACK_VERSION must be canonical MAJOR.MINOR.PATCH (0-999, no leading zeros), got: %s\n' "$fallback" >&2
   exit 1
 fi
 
@@ -39,19 +41,18 @@ is_semver_tag() {
   [[ "$1" =~ $tag_re ]]
 }
 
+is_canonical_version() {
+  [[ "$1" =~ $semver_re ]]
+}
+
 version_code_from() {
   local version=$1
   local major minor patch
-  IFS=. read -r major minor patch <<< "$version"
-  if [[ ! "$major" =~ ^[0-9]+$ || ! "$minor" =~ ^[0-9]+$ || ! "$patch" =~ ^[0-9]+$ ]]; then
+  if ! is_canonical_version "$version"; then
     printf 'Invalid SemVer components in %s\n' "$version" >&2
     return 1
   fi
-  # Reject lexically before 10# arithmetic so over-long digits cannot overflow Bash.
-  if [[ ${#major} -gt 3 || ${#minor} -gt 3 || ${#patch} -gt 3 ]]; then
-    printf 'SemVer component out of range (>=1000) in %s\n' "$version" >&2
-    return 1
-  fi
+  IFS=. read -r major minor patch <<< "$version"
   printf '%s\n' "$((10#$major * 1000000 + 10#$minor * 1000 + 10#$patch))"
 }
 
@@ -106,11 +107,16 @@ else
   else
     base=$fallback
   fi
-  if [[ ! "$base" =~ $semver_re ]]; then
+  if ! is_canonical_version "$base"; then
     printf 'Resolved base version is not SemVer: %s\n' "$base" >&2
     exit 1
   fi
   version_name=$(bump_version "$base" "$bump")
+fi
+
+if ! is_canonical_version "$version_name"; then
+  printf 'Invalid SemVer components in %s\n' "$version_name" >&2
+  exit 1
 fi
 
 version_code=$(version_code_from "$version_name")

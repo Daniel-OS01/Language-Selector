@@ -314,7 +314,7 @@ class ReleaseConfigurationTest(unittest.TestCase):
             )
 
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("out of range", result.stderr)
+        self.assertIn("Invalid SemVer", result.stderr)
 
     def test_resolve_next_version_rejects_overlong_component_lexically(self) -> None:
         repo, sha = self.init_git_repo()
@@ -346,8 +346,62 @@ class ReleaseConfigurationTest(unittest.TestCase):
                 text=True,
             )
 
+        # Over-long tag is skipped; fallback bump still succeeds.
+        self.assertEqual(0, result.returncode)
+        printed = self.parse_resolver_output(result.stdout)
+        self.assertEqual("2.1.0", printed["version_name"])
+        self.assertEqual("false", printed["reused"])
+
+    def test_resolve_next_version_rejects_leading_zero_fallback(self) -> None:
+        repo, sha = self.init_git_repo()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "github-output"
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "BUMP": "minor",
+                    "GITHUB_SHA": sha,
+                    "FALLBACK_VERSION": "0000.0.0",
+                    "GITHUB_OUTPUT": str(output_path),
+                }
+            )
+            result = subprocess.run(
+                ["bash", str(VERSION_SCRIPT)],
+                check=False,
+                capture_output=True,
+                cwd=repo,
+                env=environment,
+                text=True,
+            )
+
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("out of range", result.stderr)
+        self.assertIn("canonical", result.stderr.lower())
+        self.assertNotIn("out of range", result.stderr)
+
+    def test_resolve_next_version_ignores_leading_zero_and_oversized_tags(self) -> None:
+        repo, _ = self.init_git_repo()
+        for tag in ("v0000.0.0", "v1000.0.0", "v2.1.0"):
+            subprocess.run(
+                ["git", "tag", tag],
+                check=True,
+                cwd=repo,
+                capture_output=True,
+                text=True,
+            )
+        subprocess.run(
+            ["git", "commit", "--allow-empty", "-m", "next"],
+            check=True,
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
+        next_sha = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=repo, text=True
+        ).strip()
+
+        values = self.run_version_resolver(repo=repo, sha=next_sha, bump="minor")
+        self.assertEqual("2.2.0", values["version_name"])
+        self.assertEqual("2002000", values["version_code"])
 
     def test_resolve_next_version_reuses_existing_tag_for_sha(self) -> None:
         repo, sha = self.init_git_repo()

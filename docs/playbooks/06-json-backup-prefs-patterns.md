@@ -30,7 +30,7 @@ flowchart TD
 2. Prefer **`opt*`** / skip bad entries over `get*` that throws mid-list.
 3. Map parse failures to **`IllegalArgumentException("Invalid …")`** so UI can show `e.message`.
 4. Prefs load paths should **never crash the screen** — return empty on corrupt JSON.
-5. Keep limits (e.g. max 10 presets) at write time.
+5. Enforce **decode-time** payload and collection limits (Neo: `MAX_JSON_CHARS=1_000_000`, `MAX_APPS=2_000`, `MAX_PINNED=500`, `MAX_PRESETS=10`) — reject oversize imports rather than silently truncating.
 
 **Apply semantics for “snapshot” restores (locale presets):**
 

@@ -41,8 +41,11 @@ Operator checklist for **Language Selector Neo**. Portable ideas: [../playbooks/
 
 ## Verify the APK
 
+Use the exact asset name from the Release (or publish job outputs) and the pinned Build Tools `apksigner` (`ANDROID_BUILD_TOOLS` must match `gradle.properties` / the publish job):
+
 ```bash
-apksigner verify --verbose --print-certs language-selector-v*.apk
+"$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS/apksigner" verify --verbose --print-certs \
+  "language-selector-v${VERSION_NAME}-${SHORT_SHA}.apk"
 ```
 
 Compare certificate SHA-256 to your recorded production fingerprint.

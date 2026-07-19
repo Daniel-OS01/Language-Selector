@@ -30,14 +30,15 @@ flowchart TD
 versionCode = major * 1_000_000 + minor * 1_000 + patch
 ```
 
-Each component must be `0…999` (reject lexically if digit length > 3 **before** Bash `10#` arithmetic).
+Each component must be **canonical** `0…999`: either `0` or `[1-9]` plus at most two more digits (no leading zeros). Reject before Bash `10#` arithmetic.
 
 **Tag policy:**
 
-- Only tags matching `^v[0-9]+\.[0-9]+\.[0-9]+$` count
+- Only tags matching canonical components count, e.g. `^v(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$`
+- Oversized tags such as `v1000.0.0` and non-canonical tags such as `v0000.0.0` are **skipped** when selecting latest / SHA tags
 - Ignore `sha-*`, `latest`, etc.
-- Fallback “last released” when no `v*` tags: e.g. `2.0.0` → next minor `2.1.0`
-- Same commit re-run: reuse existing `v*` tag on that SHA (idempotent)
+- Fallback “last released” when no valid `v*` tags: e.g. `2.0.0` → next minor `2.1.0`
+- Same commit re-run: reuse existing valid `v*` tag on that SHA (idempotent)
 
 ## Concrete checklist
 

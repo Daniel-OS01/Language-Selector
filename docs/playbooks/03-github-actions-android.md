@@ -16,7 +16,7 @@ One workflow that “builds and maybe releases” becomes:
 | Workflow | Triggers | Permissions | Output |
 | --- | --- | --- | --- |
 | Validate | `pull_request`, push to working branches, path filters | `contents: read` | Tests + unsigned APK artifact |
-| Publish | `push` to release branch (path-filtered) and/or `workflow_dispatch` | build: read; publish job: `contents: write` | Signed APK + GitHub Release |
+| Publish | `push` to release branch (path-filtered) and/or `workflow_dispatch` | Workflow / build job: `contents: read`; publish job: `contents: write` (artifact download uses the job token; add `actions: read` only if your org requires it explicitly) | Signed APK + GitHub Release |
 
 **Path filters (example):** Android modules, Gradle files, `.github/workflows/**`, `scripts/ci/**` — **not** README-only.
 

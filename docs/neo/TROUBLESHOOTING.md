@@ -13,7 +13,7 @@ For portable patterns, see [../playbooks/](../playbooks/).
 | | |
 | --- | --- |
 | **Symptom** | Install fails; package appears unsigned |
-| **Cause** | Installing an **unsigned** (or differently signed) Actions validation APK |
+| **Cause** | Installing an **unsigned** Actions validation APK |
 | **Fix** | Install only from [GitHub Releases](https://github.com/Daniel-OS01/Language-Selector/releases). Validate workflow intentionally uploads unsigned APKs |
 
 ### Cannot update over older `sha-0832269` / `sha-95bc301`

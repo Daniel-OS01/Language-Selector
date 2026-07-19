@@ -19,6 +19,8 @@ fun fillListOfApps() {
     fillListJob?.cancel()
     fillListJob = viewModelScope.launch(Dispatchers.IO) {
         // build immutable result first
+        val sortedList = /* ... */
+        ensureActive() // cancelled older refresh must not publish stale UI
         // then mutate UI state once
     }
 }

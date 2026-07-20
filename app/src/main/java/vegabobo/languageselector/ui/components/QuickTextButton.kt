@@ -28,7 +28,7 @@ fun QuickTextButton(
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() }
+            .clickable(role = androidx.compose.ui.semantics.Role.Button) { onClick() }
             .padding(18.dp)
             .then(modifier),
         verticalArrangement = Arrangement.Center,

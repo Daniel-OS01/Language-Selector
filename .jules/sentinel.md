@@ -1,0 +1,4 @@
+## 2024-07-06 - Strict Network Security Configuration
+**Vulnerability:** The application did not explicitly disable cleartext (HTTP) traffic, potentially allowing sensitive data to be transmitted unencrypted if a developer accidentally used an HTTP URL.
+**Learning:** Explicitly declaring a network security configuration with `cleartextTrafficPermitted="false"` acts as a defense-in-depth measure, preventing accidental data leakage over unencrypted channels across the entire app.
+**Prevention:** Always create a `network_security_config.xml` disabling cleartext traffic by default, and reference it in the `AndroidManifest.xml` `<application>` tag for modern Android applications.

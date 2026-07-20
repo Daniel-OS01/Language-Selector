@@ -50,7 +50,7 @@ fun AppListItem(
         Image(
             modifier = Modifier.size(32.dp),
             bitmap = iconBitmap,
-            contentDescription = "app icon"
+            contentDescription = null
         )
         Spacer(modifier = Modifier.padding(8.dp))
         Column(

@@ -105,8 +105,12 @@ class MainScreenVm @Inject constructor(
         )
     }
 
+    // Bolt: Use single-pass sorting and CASE_INSENSITIVE_ORDER to avoid intermediate allocations
     private fun sortApps(apps: List<AppInfo>): List<AppInfo> =
-        apps.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
+        apps.sortedWith(
+            compareBy<AppInfo> { !it.isModified() }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+        )
 
     private var fillListJob: Job? = null
     private var searchJob: Job? = null
@@ -223,15 +227,17 @@ class MainScreenVm @Inject constructor(
             val selectedLabels = _uiState.value.selectLabels.toList()
             val requireModified = selectedLabels.contains(AppLabels.MODIFIED)
             val showSystemApps = selectedLabels.contains(AppLabels.SYSTEM_APP)
-            val normalizedQuery = query.trim().lowercase()
+            // Bolt: Avoid `.lowercase()` allocations; trim for searching
+            val normalizedQuery = query.trim()
 
             val results = withContext(Dispatchers.Default) {
                 val queryFiltered = if (normalizedQuery.isEmpty()) {
                     appsSnapshot
                 } else {
                     appsSnapshot.filter {
-                        it.pkg.lowercase().contains(normalizedQuery) ||
-                                it.name.lowercase().contains(normalizedQuery)
+                        // Bolt: Use `ignoreCase = true` instead of lowercase allocations
+                        it.pkg.contains(normalizedQuery, ignoreCase = true) ||
+                                it.name.contains(normalizedQuery, ignoreCase = true)
                     }
                 }
 

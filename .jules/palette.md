@@ -1,0 +1,3 @@
+## 2024-07-24 - Fix redundant TalkBack announcements for decorative icons
+**Learning:** In Jetpack Compose, setting a `contentDescription` on an `Image` or `Icon` that is visually adjacent to a `Text` composable displaying the same information (e.g., app icons next to app names in list items, or icons in text buttons) causes TalkBack to read redundant or noisy information like "app icon". Also, generic clickables lack button semantics.
+**Action:** Always set `contentDescription = null` for decorative icons adjacent to text labels to prevent redundant screen reader announcements. Additionally, explicitly set `role = androidx.compose.ui.semantics.Role.Button` on custom clickable components to provide proper semantic feedback.

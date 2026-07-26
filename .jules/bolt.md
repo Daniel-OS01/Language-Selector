@@ -1,0 +1,3 @@
+## 2024-07-26 - Kotlin Collection and String Allocation Overhead
+**Learning:** Calling `.lowercase()` inside collection operations like `.filter` or `.sortedBy` creates significant unnecessary string allocations (O(N log N) during sorts) which trigger GC pauses. Additionally, chaining multiple `.sortedBy` calls allocates intermediate lists.
+**Action:** Optimize performance by replacing `.lowercase()` with `.contains(..., ignoreCase = true)` for searching, and `.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { ... })` for sorting. Combine multiple sorts into a single pass using `.thenBy(...)` reversing the written order since Kotlin sorts are stable.

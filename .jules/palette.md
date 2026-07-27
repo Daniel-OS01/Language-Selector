@@ -1,0 +1,3 @@
+## 2024-05-15 - Redundant TalkBack announcements in custom Compose buttons
+**Learning:** When using `.clickable` on custom Jetpack Compose components (like `Row` or `Column`) that function as buttons and contain both text and decorative icons, missing semantic roles cause screen readers to announce them ambiguously. Additionally, if the decorative icon has its own `contentDescription` along with the adjacent text label, TalkBack will announce both, creating redundancy.
+**Action:** Explicitly set `role = androidx.compose.ui.semantics.Role.Button` on `.clickable` modifiers for custom interactive components. For decorative icons adjacent to text labels within these components, set `contentDescription = null` to prevent redundant TalkBack announcements.

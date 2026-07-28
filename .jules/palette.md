@@ -1,0 +1,3 @@
+## 2024-07-28 - Fix redundant TalkBack announcements and missing semantics
+**Learning:** In Jetpack Compose, components that inherently manage their accessibility state (like selected FilterChips) or decorative icons adjacent to text labels (like app icons) cause redundant TalkBack announcements if they have content descriptions. Additionally, custom clickable components require explicit semantic roles to be announced correctly as buttons.
+**Action:** Set `contentDescription = null` for decorative or state-inherent icons, and explicitly define `role = androidx.compose.ui.semantics.Role.Button` when applying `.clickable` to custom button-like components.

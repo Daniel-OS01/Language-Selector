@@ -1,0 +1,3 @@
+## 2025-03-01 - Avoid chained sorting and .lowercase() inside Kotlin sort functions
+**Learning:** Chaining `.sortedBy` calls in Kotlin creates unnecessary intermediate list allocations. Additionally, calling `.lowercase()` inside the sorting closure for strings causes significant performance overhead due to repeated string allocations (O(N log N) allocations during sort).
+**Action:** Use `.sortedWith(compareBy<T> { primary }.thenBy(String.CASE_INSENSITIVE_ORDER) { secondary })` to perform sorting in a single pass without creating intermediate lists or allocating new lowercase strings. Remember that the last `.sortedBy` in a chain is the primary sort criterion.

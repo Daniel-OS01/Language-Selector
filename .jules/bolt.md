@@ -1,0 +1,3 @@
+## 2024-05-15 - [LocaleManager Initialization Performance]
+**Learning:** `Locale.getDisplayName(locale)` and `Locale.getDisplayLanguage(locale)` are expensive string allocation operations because they attempt to return the name translated into its *own* locale, doing significant ICU lookups on Android. A simple loop calling these methods on all 1000+ locales can take over 800ms.
+**Action:** Since the user expects the names to be in their own languages in a language selector app, we cannot use `getDisplayName()`. We can cache the returned `getDisplayLanguage(locale)` by the `locale.language` (language code). Calling it once per language code rather than for every single locale variant significantly reduces the parsing time.

@@ -1,0 +1,4 @@
+## 2024-12-05 - Insecure Android Data Backups
+**Vulnerability:** Android application explicitly allowed cloud data backups (`android:allowBackup="true"`) and did not explicitly exclude data from device-to-device transfers, leading to sensitive data extraction risks.
+**Learning:** For Android 12+ (API 31+), `android:allowBackup="false"` is ignored for device-to-device transfers. Thus, an app needs `<exclude>` rules for all domains explicitly across `<cloud-backup>` and `<device-transfer>` inside `data_extraction_rules.xml`, and identically under `<full-backup-content>` inside `backup_rules.xml` for backwards compatibility.
+**Prevention:** Always set `android:allowBackup="false"` and define explicit `<exclude>` policies for all app data directories in `data_extraction_rules.xml` and `backup_rules.xml`.

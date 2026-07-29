@@ -1,0 +1,3 @@
+## 2024-05-18 - String Allocations in Collection Operations
+**Learning:** Found a codebase-specific anti-pattern where `.lowercase()` was being called inside collection operations like `.sortedBy` and `.filter`. This creates significant intermediate string allocations (e.g., O(N log N) overhead in sorts). Additionally, multiple chained sorts (`.sortedBy { ... }.sortedBy { ... }`) were being used, allocating intermediate lists.
+**Action:** Optimize performance by combining chained sorts into a single pass using `.sortedWith(compareBy { ... }.thenBy { ... })`, and replace `.lowercase()` string allocations with `String.CASE_INSENSITIVE_ORDER` for sorting and `.contains(..., ignoreCase = true)` for searching.

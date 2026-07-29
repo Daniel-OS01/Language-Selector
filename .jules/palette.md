@@ -1,0 +1,3 @@
+## 2024-07-29 - Improve TalkBack Announcements & Component Accessibility
+**Learning:** Decorative or informative icons adjacent to descriptive text in Jetpack Compose elements cause redundant dual announcements in TalkBack if they have their own contentDescription. Also, applying Modifier.clickable to custom interactive components requires an explicit role definition (like Role.Button) for proper screen reader announcement of the element's interactive intent.
+**Action:** Set contentDescription = null on icons that are visually explained by adjacent textual components, and explicitly provide role = androidx.compose.ui.semantics.Role.Button on clickable custom UI elements.

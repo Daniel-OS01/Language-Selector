@@ -1,0 +1,4 @@
+## 2024-05-24 - Securely Disable Backups on Android 12+
+**Vulnerability:** Android backups were enabled and misconfigured, risking sensitive data extraction. Setting `android:allowBackup="false"` in AndroidManifest.xml is insufficient on Android 12+ (API 31+) as it is ignored for device-to-device transfers.
+**Learning:** To securely disable backups and data transfers on Android 12+, we must retain `android:dataExtractionRules` and explicitly `<exclude>` all domains (root, file, database, sharedpref, external) under both `<cloud-backup>` and `<device-transfer>` in `data_extraction_rules.xml`, and apply the same `<exclude>` rules under `<full-backup-content>` in `backup_rules.xml`.
+**Prevention:** Always verify Android 12+ backup configurations explicitly in XML rules, do not rely solely on `android:allowBackup="false"`. Ensure every `<exclude>` or `<include>` element explicitly declares both `domain` and `path` attributes.

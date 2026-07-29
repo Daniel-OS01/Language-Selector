@@ -1,0 +1,7 @@
+## 2024-05-07 - Avoid Redundant TalkBack Announcements for Text Buttons
+**Learning:** For `Icon`s that are paired with visible descriptive text inside the same interactive component (like `QuickTextButton`), specifying `contentDescription = text` causes TalkBack to announce the text twice. Also, standard `clickable` modifiers default to a generic "Double tap to activate" announcement, which can lack context.
+**Action:** Always set `contentDescription = null` for `Icon`s when adjacent descriptive text is present in the same view. Use the `onClickLabel` parameter on the `clickable` modifier to replace the generic screen reader hint with a descriptive action.
+
+## 2024-05-07 - Suppress State Announcements for Inherent State Components
+**Learning:** Components that inherently announce their state (such as `FilterChip` for selection/deselection) shouldn't have internal state-indicating icons (e.g., a checkmark for the selected state) providing their own `contentDescription`. Doing so creates redundant and sometimes confusing announcements (e.g., announcing "Done icon" in addition to "Selected, Show System Apps, FilterChip").
+**Action:** Set `contentDescription = null` for internal icons within components that already handle their own state announcements.

@@ -19,7 +19,7 @@ fun SystemDialogWarn(
         icon = {
             Icon(
                 imageVector = Icons.Outlined.WarningAmber,
-                contentDescription = "Warning icon"
+                contentDescription = null
             )
         },
         text = { Text(stringResource(R.string.warning_system_apps)) },

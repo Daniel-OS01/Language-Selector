@@ -37,7 +37,7 @@ fun QuickTextButton(
         Icon(
             modifier = Modifier.size(28.dp),
             imageVector = icon,
-            contentDescription = text,
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.padding(2.dp))

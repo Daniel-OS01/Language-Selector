@@ -1,0 +1,4 @@
+## 2024-05-24 - Securely Disabling Backups on Android 12+
+**Vulnerability:** Application backups (both cloud and device-to-device transfers) are enabled by default and setting `android:allowBackup="false"` is insufficient on Android 12+ (API 31+) as it is ignored for device-to-device transfers. This can lead to sensitive data extraction.
+**Learning:** To securely disable all backups on Android 12+, you must retain `android:dataExtractionRules` and explicitly `<exclude>` all domains (`root`, `file`, `database`, `sharedpref`, `external`) under both `<cloud-backup>` and `<device-transfer>` in `data_extraction_rules.xml`. The same `<exclude>` rules must be applied under `<full-backup-content>` in `backup_rules.xml`.
+**Prevention:** Always explicitly define backup rules using `data_extraction_rules.xml` and `backup_rules.xml` to prevent any sensitive data from being backed up or transferred, and ensure every `<exclude>` tag defines both `domain` and `path`.

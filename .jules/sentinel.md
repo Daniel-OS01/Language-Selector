@@ -1,0 +1,4 @@
+## 2024-05-26 - Incomplete Disablement of Android App Backups
+**Vulnerability:** The application had `android:allowBackup="true"`, allowing sensitive app data to be extracted via adb backup or cloud backups. Simply setting this to `false` is insufficient on Android 12+ (API 31+).
+**Learning:** On Android 12+, `android:allowBackup="false"` is ignored for device-to-device transfers. To securely prevent data extraction, we must retain `android:dataExtractionRules` and explicitly `<exclude>` all domains (root, file, database, sharedpref, external) under both `<cloud-backup>` and `<device-transfer>` in `data_extraction_rules.xml`, and apply the same rules in `backup_rules.xml`.
+**Prevention:** Always verify that disabling backups on Android 12+ includes explicit XML exclusion rules for all storage domains, rather than relying solely on the manifest attribute.

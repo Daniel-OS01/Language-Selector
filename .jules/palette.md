@@ -1,0 +1,3 @@
+## 2024-07-05 - Redundant TalkBack announcements for state icons in Jetpack Compose
+**Learning:** In Jetpack Compose, icons within components that inherently manage their own accessibility state (such as the 'Done' icon in a selected `FilterChip`) should have `contentDescription = null` to prevent redundant TalkBack announcements. Giving them a description like "Done icon" causes screen readers to redundantly announce the state and the icon description.
+**Action:** Always set `contentDescription = null` for state-indicating icons inside interactive components like `FilterChip`, `Checkbox`, or `RadioButton` to rely on the parent component's semantic state instead.

@@ -1,0 +1,4 @@
+## 2025-01-28 - Insecure Backup Configuration
+**Vulnerability:** Android application data extraction and backup were enabled, which could allow unauthorized extraction of sensitive data on Android 12+ devices, especially during device-to-device transfers.
+**Learning:** `android:allowBackup="false"` in `AndroidManifest.xml` is insufficient to prevent data extraction on Android 12+ (API 31+). `android:dataExtractionRules` and `android:fullBackupContent` properties must be provided.
+**Prevention:** Always maintain robust `<exclude>` rules for all domains (`root`, `file`, `database`, `sharedpref`, `external`) under both `<cloud-backup>` and `<device-transfer>` in `data_extraction_rules.xml` and under `<full-backup-content>` in `backup_rules.xml`. Provide valid `domain` and `path` attributes for every rule.

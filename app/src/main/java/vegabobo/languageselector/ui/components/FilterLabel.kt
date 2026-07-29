@@ -24,7 +24,7 @@ fun FilterLabel(
             {
                 Icon(
                     imageVector = Icons.Filled.Done,
-                    contentDescription = "Done icon",
+                    contentDescription = null,
                     modifier = Modifier.size(FilterChipDefaults.IconSize)
                 )
             }

@@ -1,0 +1,3 @@
+## 2024-05-24 - Kotlin String allocations in collection operations
+**Learning:** Calling .lowercase() inside collection functions like .sortedBy or .filter creates significant intermediate string allocations, resulting in O(N log N) overhead in sorts and slowing down filtering for large lists. Furthermore, chaining sorts (e.g. .sortedBy {}.sortedBy {}) allocates intermediate lists.
+**Action:** Always optimize performance by using sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { ... }) for sorting and .contains(..., ignoreCase = true) for searching. Combine chained sorts into a single pass using .thenBy(...), making sure the primary sort in chained `.sortedBy()` calls goes first in `compareBy` when reversing order into `sortedWith()`.

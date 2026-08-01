@@ -1,0 +1,3 @@
+## 2024-05-15 - Eliminate Intermediate Allocations in Kotlin Collections
+**Learning:** Chaining multiple `.sortedBy` calls in Kotlin creates intermediate list allocations since each `.sortedBy` call processes the entire list again. Additionally, applying inline operations like `.lowercase()` inside sorting loops or filters generates massive string allocations (O(N log N) in sorts or O(N) in filters).
+**Action:** Always combine chained sorts into a single pass using `sortedWith(compareBy { ... }.thenBy { ... })`. For string comparisons, avoid `.lowercase()` allocations by using `String.CASE_INSENSITIVE_ORDER` in sorts and `.contains(..., ignoreCase = true)` in filters.

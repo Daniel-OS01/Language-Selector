@@ -1,0 +1,3 @@
+## 2024-05-24 - Fix redundant TalkBack announcements in AppListItem
+**Learning:** The app's list items previously had a generic "app icon" content description next to the app name text, causing redundant TalkBack announcements, and lacked the Button semantic role on the clickable row, obscuring the interaction intent.
+**Action:** When creating clickable list items containing both decorative icons and text labels in Jetpack Compose, always set the icon's `contentDescription` to `null` and explicitly pass `role = androidx.compose.ui.semantics.Role.Button` to the `.clickable` modifier to ensure screen readers correctly announce the component's intent.

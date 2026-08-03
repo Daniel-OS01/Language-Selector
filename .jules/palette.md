@@ -1,0 +1,3 @@
+## 2025-02-09 - Accessibility patterns for custom Compose components
+**Learning:** In this application, custom Jetpack Compose components (like list items and quick actions) often use `.clickable` without a semantic role, preventing screen readers from announcing their intent as buttons. Additionally, decorative icons within these components and inside stateful chips (like `FilterChip`) often have redundant content descriptions, leading to excessive TalkBack noise.
+**Action:** Always explicitly define `role = androidx.compose.ui.semantics.Role.Button` when applying `.clickable` to custom components functioning as buttons. Set `contentDescription = null` on icons that are purely decorative or adjacent to text labels that already convey the necessary context.

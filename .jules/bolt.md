@@ -1,0 +1,3 @@
+## 2025-03-01 - Avoid intermediate string allocations in Kotlin collections
+**Learning:** Kotlin's `.lowercase()` inside collection operations (like `.sortedBy` or `.filter`) eagerly allocates a new string per item, causing significant GC overhead (O(N log N) for sorts, O(N) for searches). Furthermore, chaining `.sortedBy().sortedBy()` allocates intermediate lists on each pass.
+**Action:** Use `sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { ... })` to sort without allocating new strings, and use `.contains(..., ignoreCase = true)` for filtering. Collapse chained sorts into a single pass using `.thenBy(...)` in reverse order of the original stable sorts.

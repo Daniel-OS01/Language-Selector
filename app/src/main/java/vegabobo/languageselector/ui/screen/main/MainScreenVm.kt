@@ -106,7 +106,10 @@ class MainScreenVm @Inject constructor(
     }
 
     private fun sortApps(apps: List<AppInfo>): List<AppInfo> =
-        apps.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
+        // ⚡ Bolt Performance Optimization:
+        // Combined chained sorts to prevent intermediate list allocations and used
+        // String.CASE_INSENSITIVE_ORDER to avoid O(N log N) string allocations from .lowercase().
+        apps.sortedWith(compareBy<AppInfo> { !it.isModified() }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
 
     private var fillListJob: Job? = null
     private var searchJob: Job? = null
@@ -223,15 +226,18 @@ class MainScreenVm @Inject constructor(
             val selectedLabels = _uiState.value.selectLabels.toList()
             val requireModified = selectedLabels.contains(AppLabels.MODIFIED)
             val showSystemApps = selectedLabels.contains(AppLabels.SYSTEM_APP)
-            val normalizedQuery = query.trim().lowercase()
+            val normalizedQuery = query.trim()
 
             val results = withContext(Dispatchers.Default) {
                 val queryFiltered = if (normalizedQuery.isEmpty()) {
                     appsSnapshot
                 } else {
                     appsSnapshot.filter {
-                        it.pkg.lowercase().contains(normalizedQuery) ||
-                                it.name.lowercase().contains(normalizedQuery)
+                        // ⚡ Bolt Performance Optimization:
+                        // Using contains(..., ignoreCase = true) to prevent O(N) intermediate
+                        // string allocations from .lowercase() on every iteration.
+                        it.pkg.contains(normalizedQuery, ignoreCase = true) ||
+                                it.name.contains(normalizedQuery, ignoreCase = true)
                     }
                 }
 

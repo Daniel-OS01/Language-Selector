@@ -106,7 +106,8 @@ class MainScreenVm @Inject constructor(
     }
 
     private fun sortApps(apps: List<AppInfo>): List<AppInfo> =
-        apps.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
+        // ⚡ Bolt: Avoid intermediate string allocations and multi-pass sorts
+        apps.sortedWith(compareBy<AppInfo> { !it.isModified() }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
 
     private var fillListJob: Job? = null
     private var searchJob: Job? = null

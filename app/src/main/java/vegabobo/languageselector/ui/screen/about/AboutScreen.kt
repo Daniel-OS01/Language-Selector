@@ -125,7 +125,7 @@ fun PreferenceItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
             .padding(
                 start = 24.dp,
                 top = 16.dp,

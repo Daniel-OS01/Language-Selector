@@ -1,0 +1,3 @@
+## 2024-05-23 - Prevent redundant TalkBack announcements for decorative/state icons
+**Learning:** In Jetpack Compose, setting a `contentDescription` on icons within components that inherently manage their own accessibility state (like the 'Done' icon in a selected `FilterChip`), or on decorative icons adjacent to text labels (like app icons in list items or icons in labeled buttons), causes TalkBack to make redundant, confusing announcements.
+**Action:** Always set `contentDescription = null` for decorative icons or icons where the parent component already manages or announces the state/label.

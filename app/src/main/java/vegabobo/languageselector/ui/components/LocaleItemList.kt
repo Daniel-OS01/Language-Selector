@@ -46,7 +46,7 @@ fun LocaleItemList(
         if (isPinned) {
             Icon(
                 imageVector = Icons.Filled.Star,
-                contentDescription = "Pinned",
+                contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )

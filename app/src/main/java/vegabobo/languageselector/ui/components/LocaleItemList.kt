@@ -32,6 +32,7 @@ fun LocaleItemList(
     Row(
         modifier = Modifier
             .combinedClickable(
+                role = androidx.compose.ui.semantics.Role.Button,
                 onClick = { onClick() },
                 onLongClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)

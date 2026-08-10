@@ -1,0 +1,3 @@
+## 2024-08-10 - Optimize chained Kotlin sortedBy calls
+**Learning:** In Kotlin, chaining multiple `.sortedBy` calls allocates an intermediate list for each call. Additionally, using `.lowercase()` inside the sorting closure allocates a new string for each comparison, leading to O(N log N) string allocations.
+**Action:** Replace chained `.sortedBy` with a single-pass `sortedWith(compareBy { ... }.thenBy { ... })`. For case-insensitive string sorting, use `String.CASE_INSENSITIVE_ORDER` instead of calling `.lowercase()`. Note that Kotlin's `sortedBy` is a stable sort, meaning the last applied sort is the primary sort. Therefore, when refactoring to `sortedWith`, the order of the sorts must be reversed to preserve the original behavior.

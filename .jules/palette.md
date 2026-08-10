@@ -1,0 +1,3 @@
+## 2024-08-10 - Redundant TalkBack announcements for decorative and state-managed icons
+**Learning:** Icons within components that inherently manage their own accessibility state (e.g., 'Done' icon in selected FilterChip) or decorative icons adjacent to text labels (e.g., app icons in list items) cause redundant TalkBack announcements if they have a non-null `contentDescription`.
+**Action:** Explicitly set `contentDescription = null` for such icons to improve the experience for screen reader users, while ensuring icons conveying unique state (like 'Pinned' indicators) retain their descriptions.

@@ -1,0 +1,3 @@
+## 2024-08-13 - [Optimize String Allocations in Sorts/Filters]
+**Learning:** Calling `.lowercase()` inside collection operations like `.sortedBy` or `.filter` in Kotlin creates significant intermediate string allocations (O(N log N) overhead in sorts). Chained sorts (`.sortedWith(...).sortedBy(...)`) also allocate intermediate lists.
+**Action:** Optimize performance by using `sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { ... })` for sorting and `.contains(..., ignoreCase = true)` for searching. Combine multiple sorts into a single pass using `.thenBy(...)`, remembering that for `sortedBy { X }.sortedBy { Y }`, the correct single-pass equivalent reverses the written order: `sortedWith(compareBy { Y }.thenBy { X })`.

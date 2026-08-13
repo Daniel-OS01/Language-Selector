@@ -1,0 +1,3 @@
+## 2024-05-24 - Redundant TalkBack announcements in list items and chips
+**Learning:** App icons adjacent to text labels and state-indicating icons (like 'Done' in FilterChip) cause redundant screen reader announcements when they have a contentDescription.
+**Action:** Always set contentDescription to null for decorative icons adjacent to text and icons within components that manage their own accessibility state.

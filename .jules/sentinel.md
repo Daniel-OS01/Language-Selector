@@ -1,0 +1,4 @@
+## 2024-08-14 - Enforce strict network security configuration
+**Vulnerability:** The application lacks a network security configuration explicitly disabling cleartext traffic, potentially allowing unencrypted HTTP connections.
+**Learning:** Modern Android applications should define network security policies explicitly via XML to ensure a strict baseline against accidental cleartext traffic and improve auditability, even though cleartext is disabled by default on API 28+.
+**Prevention:** Always create a `network_security_config.xml` defining `<base-config cleartextTrafficPermitted="false" />` and reference it in the AndroidManifest.xml.

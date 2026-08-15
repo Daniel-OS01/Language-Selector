@@ -1,0 +1,3 @@
+## 2024-05-24 - Fix redundant TalkBack announcements
+**Learning:** In Jetpack Compose, decorative icons adjacent to text labels (like app icons) or icons within components that already manage accessibility state (like the 'Done' icon in FilterChip) cause redundant TalkBack announcements if they have a non-null contentDescription. Additionally, custom clickable components require an explicit Role.Button to be correctly announced by screen readers.
+**Action:** Set contentDescription to null for purely decorative or redundant icons. Always specify a semantic role (e.g., Role.Button) when applying the clickable modifier to custom components.

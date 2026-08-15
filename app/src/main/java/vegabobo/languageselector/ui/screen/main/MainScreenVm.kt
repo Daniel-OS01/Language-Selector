@@ -106,7 +106,8 @@ class MainScreenVm @Inject constructor(
     }
 
     private fun sortApps(apps: List<AppInfo>): List<AppInfo> =
-        apps.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
+        // ⚡ Bolt: Use sortedWith and CASE_INSENSITIVE_ORDER to avoid intermediate allocations from lowercase() and multiple sorting passes
+        apps.sortedWith(compareBy<AppInfo> { !it.isModified() }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
 
     private var fillListJob: Job? = null
     private var searchJob: Job? = null
@@ -229,9 +230,10 @@ class MainScreenVm @Inject constructor(
                 val queryFiltered = if (normalizedQuery.isEmpty()) {
                     appsSnapshot
                 } else {
+                    // ⚡ Bolt: Use ignoreCase = true to avoid allocating new lowercase strings for every app during search
                     appsSnapshot.filter {
-                        it.pkg.lowercase().contains(normalizedQuery) ||
-                                it.name.lowercase().contains(normalizedQuery)
+                        it.pkg.contains(normalizedQuery, ignoreCase = true) ||
+                                it.name.contains(normalizedQuery, ignoreCase = true)
                     }
                 }
 

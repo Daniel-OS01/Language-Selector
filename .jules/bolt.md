@@ -1,0 +1,3 @@
+## 2024-03-24 - Avoid intermediate string allocations in collections
+**Learning:** The codebase has a pattern of using `.lowercase()` inside `.sortedBy` and `.filter` loops (e.g. searching/sorting apps by name/package), which creates O(N log N) string allocations. Also, chaining `.sortedBy()` creates multiple intermediate list allocations.
+**Action:** Use `sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })` for sorting and `.contains(query, ignoreCase = true)` for searching. Combine multiple sorts using `.thenBy()`, ordering from last to first to preserve the stable sort priority.

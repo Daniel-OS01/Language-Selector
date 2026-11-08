@@ -175,6 +175,6 @@ fun Set<String>.parseSetLangs(): MutableList<SingleLocale> {
         .distinctBy { it.languageTag }
         // Deterministic, stable ordering: alphabetical by display name.
         // ⚡ Bolt: Use CASE_INSENSITIVE_ORDER to avoid allocating lowercase strings during sort
-        .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+        .sortedWith(compareBy(java.lang.String.CASE_INSENSITIVE_ORDER) { it.name })
         .toMutableList()
 }

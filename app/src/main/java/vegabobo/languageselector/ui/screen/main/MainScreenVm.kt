@@ -107,7 +107,7 @@ class MainScreenVm @Inject constructor(
 
     private fun sortApps(apps: List<AppInfo>): List<AppInfo> =
         // ⚡ Bolt: Combine multiple sorts and use CASE_INSENSITIVE_ORDER to avoid intermediate allocations
-        apps.sortedWith(compareBy<AppInfo> { !it.isModified() }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+        apps.sortedWith(compareBy<AppInfo> { !it.isModified() }.thenBy(java.lang.String.CASE_INSENSITIVE_ORDER) { it.name })
 
     private var fillListJob: Job? = null
     private var searchJob: Job? = null

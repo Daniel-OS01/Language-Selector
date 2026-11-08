@@ -59,7 +59,7 @@ jobs:
           java-version: '21'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
@@ -123,7 +123,7 @@ jobs:
         run: python3 scripts/ci/verify_shizuku_artifacts.py
 
       - name: Run release tests, lint, and build
-        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest lintRelease assembleRelease
+        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest lintRelease assembleRelease --max-workers=2
 
       - name: Compute release metadata
         id: release_metadata

@@ -59,23 +59,22 @@ jobs:
           java-version: '21'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: 11076708
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
 
       - name: Install actionlint
-        env:
-          ACTIONLINT_VERSION: 1.7.12
-          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
         run: |
-          archive="$RUNNER_TEMP/actionlint.tar.gz"
-          curl --fail --location --retry 3 --retry-all-errors \
-            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
-            --output "$archive"
-          echo "$ACTIONLINT_SHA256  $archive" | sha256sum --check --strict
-          tar --extract --gzip --file "$archive" --directory "$RUNNER_TEMP" actionlint
-          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Lint GitHub Actions workflows and CI shell
         run: |
@@ -124,7 +123,7 @@ jobs:
         run: python3 scripts/ci/verify_shizuku_artifacts.py
 
       - name: Run release tests, lint, and build
-        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest lintRelease assembleRelease
+        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest lintRelease assembleRelease --max-workers=2
 
       - name: Compute release metadata
         id: release_metadata

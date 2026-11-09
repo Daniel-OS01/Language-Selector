@@ -123,6 +123,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null
           set -o pipefail
           sdkmanager \
+            "cmdline-tools;latest" \
             "platform-tools" \
             "platforms;android-$compile_sdk" \
             "build-tools;$build_tools"

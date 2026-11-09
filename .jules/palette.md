@@ -1,0 +1,3 @@
+## 2024-11-20 - Nullifying redundant contentDescriptions on icons adjacent to labels
+**Learning:** In Jetpack Compose, setting `contentDescription` on decorative icons (or icons whose information is already conveyed by adjacent text or components) creates redundant announcements for TalkBack users (e.g., announcing "app icon" followed by the app name). To reduce noise and improve accessibility, decorative or redundant icons should have their `contentDescription` set to `null` to prevent TalkBack from announcing them. However, if the icon conveys unique state that is not in the text, it should not be nullified.
+**Action:** Always set `contentDescription = null` for icons like generic app icons or warning icons that are adjacent to text describing the warning.

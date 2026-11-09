@@ -1,0 +1,3 @@
+## 2026-11-09 - Avoid implicit allocations in Kotlin collections
+**Learning:** Calling `.lowercase()` inside Kotlin collection functions like `.sortedBy` or `.filter` creates significant intermediate O(N) or O(N log N) string allocations. Furthermore, chaining multiple `.sortedBy` calls allocates intermediate lists. Kotlin `.sortedBy` is stable, so reversing sort operations into a single `.sortedWith(compareBy(...).thenBy(...))` reduces these allocations.
+**Action:** Always prefer `sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { ... })` and `.contains(..., ignoreCase = true)` to skip unnecessary lowercasing of property fields, and collapse multiple `.sortedBy()` passes into `.sortedWith()` combinations.

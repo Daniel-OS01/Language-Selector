@@ -250,7 +250,7 @@ jobs:
           set +o pipefail
           yes | sdkmanager --licenses >/dev/null
           set -o pipefail
-          sdkmanager "build-tools;$ANDROID_BUILD_TOOLS" >/dev/null
+          sdkmanager "cmdline-tools;latest" "build-tools;$ANDROID_BUILD_TOOLS" >/dev/null
           apksigner="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS/apksigner"
           [[ -x "$apksigner" ]] || { echo "expected apksigner at $apksigner" >&2; exit 1; }
           "$apksigner" verify --verbose --print-certs "$apk"

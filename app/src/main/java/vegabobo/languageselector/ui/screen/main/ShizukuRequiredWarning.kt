@@ -22,7 +22,7 @@ fun ShizukuRequiredWarning(
         icon = {
             Icon(
                 imageVector = Icons.Outlined.WarningAmber,
-                contentDescription = "Warning icon"
+                contentDescription = null
             )
         },
         title = { Text(stringResource(id = R.string.permissions_required)) },

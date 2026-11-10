@@ -112,6 +112,7 @@ jobs:
           set +o pipefail
           yes | sdkmanager --licenses >/dev/null
           set -o pipefail
+          sdkmanager --install "cmdline-tools;latest" >/dev/null
           sdkmanager \
             "platform-tools" \
             "platforms;android-$compile_sdk" \

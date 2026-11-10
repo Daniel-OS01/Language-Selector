@@ -112,7 +112,7 @@ jobs:
           set +o pipefail
           yes | sdkmanager --licenses >/dev/null
           set -o pipefail
-          sdkmanager "cmdline-tools;latest"
+          sdkmanager "cmdline-tools;latest" --sdk_root=$ANDROID_HOME
           sdkmanager \
             "platform-tools" \
             "platforms;android-$compile_sdk" \

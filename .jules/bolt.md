@@ -1,0 +1,3 @@
+## 2025-02-20 - Optimize Collection Sorts and String Formatting in Kotlin
+**Learning:** In Kotlin, using `.lowercase()` inside collection operations like `.sortedBy` or `.filter` is highly inefficient. It allocates a new String for every item (often creating significant O(N log N) overhead in sorts). In addition, chaining multiple `.sortedBy` calls causes multiple complete passes and intermediate list allocations.
+**Action:** Optimize string comparisons and sorts by leveraging `String.CASE_INSENSITIVE_ORDER` inside `sortedWith` (e.g. `sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })`) and use `.contains(..., ignoreCase = true)` for searching. Combine chained sorts into a single `.sortedWith` call using `.thenBy`.

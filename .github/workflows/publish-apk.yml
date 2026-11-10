@@ -92,6 +92,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          packages: ""
 
       - name: Read and install configured Android platform and build tools
         id: android_versions
@@ -122,6 +124,7 @@ jobs:
           set +o pipefail
           yes | sdkmanager --licenses >/dev/null
           set -o pipefail
+          sdkmanager "cmdline-tools;latest" --sdk_root=$ANDROID_HOME
           sdkmanager \
             "platform-tools" \
             "platforms;android-$compile_sdk" \
@@ -240,6 +243,8 @@ jobs:
 
       - name: Set up Android SDK for APK verification
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          packages: ""
 
       - name: Verify downloaded APK signature
         run: |
@@ -249,6 +254,7 @@ jobs:
           set +o pipefail
           yes | sdkmanager --licenses >/dev/null
           set -o pipefail
+          sdkmanager "cmdline-tools;latest" --sdk_root=$ANDROID_HOME >/dev/null
           sdkmanager "build-tools;$ANDROID_BUILD_TOOLS" >/dev/null
           apksigner="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS/apksigner"
           [[ -x "$apksigner" ]] || { echo "expected apksigner at $apksigner" >&2; exit 1; }

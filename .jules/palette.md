@@ -1,0 +1,3 @@
+## 2024-05-24 - Optimize Accessibility in Compose Buttons and Lists
+**Learning:** In Jetpack Compose, decorative icons in list items and custom button components immediately paired with equivalent text labels often have redundant TalkBack announcements when a `contentDescription` is set. Furthermore, custom button components using the `.clickable` modifier require an explicit semantic role to be announced as a button.
+**Action:** Explicitly set the semantic role (e.g., `role = androidx.compose.ui.semantics.Role.Button`) in custom components functioning as buttons. Apply `contentDescription = null` to decorative icons paired with equivalent text labels to eliminate redundant screen reader announcements.

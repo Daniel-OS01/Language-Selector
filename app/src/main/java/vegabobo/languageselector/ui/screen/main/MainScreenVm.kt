@@ -106,7 +106,10 @@ class MainScreenVm @Inject constructor(
     }
 
     private fun sortApps(apps: List<AppInfo>): List<AppInfo> =
-        apps.sortedBy { it.name.lowercase() }.sortedBy { !it.isModified() }
+        // Optimize sorting: Avoid chaining intermediate lists and avoid .lowercase() string allocations.
+        apps.sortedWith(
+            compareBy<AppInfo> { !it.isModified() }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+        )
 
     private var fillListJob: Job? = null
     private var searchJob: Job? = null
@@ -230,8 +233,8 @@ class MainScreenVm @Inject constructor(
                     appsSnapshot
                 } else {
                     appsSnapshot.filter {
-                        it.pkg.lowercase().contains(normalizedQuery) ||
-                                it.name.lowercase().contains(normalizedQuery)
+                        it.pkg.contains(normalizedQuery, ignoreCase = true) ||
+                                it.name.contains(normalizedQuery, ignoreCase = true)
                     }
                 }
 

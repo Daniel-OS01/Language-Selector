@@ -125,6 +125,9 @@ private fun AppIcon(app: AppInfo) {
         initialValue = AppIconMemoryCache.get(cacheKey),
         key1 = cacheKey,
     ) {
+        // produceState retains its value when keys change; never show an old
+        // package/version bitmap or skip the new icon load after an app update.
+        value = AppIconMemoryCache.get(cacheKey)
         if (value == null) {
             value = withContext(Dispatchers.IO) {
                 AppIconMemoryCache.get(cacheKey) ?: runCatching {

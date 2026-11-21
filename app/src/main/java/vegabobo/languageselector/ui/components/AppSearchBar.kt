@@ -20,6 +20,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
@@ -41,6 +42,7 @@ fun AppSearchBar(
     onSelectedLabelsChange: (AppLabels) -> Unit,
     actions: @Composable RowScope.() -> Unit,
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
     Column(
         modifier = Modifier
             .semantics { isTraversalGroup = true }
@@ -78,7 +80,10 @@ fun AppSearchBar(
                 modifier = Modifier.fillMaxWidth(),
                 query = query,
                 onQueryChange = onUpdatedValue,
-                onSearch = onSearch,
+                onSearch = {
+                    onSearch(it)
+                    keyboardController?.hide()
+                },
                 expanded = isExpanded,
                 onExpandedChange = onExpandedChange,
                 placeholder = { Text(placeholder) },

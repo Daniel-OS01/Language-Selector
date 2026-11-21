@@ -42,6 +42,7 @@ fun MainScreen(
     mainScreenVm: MainScreenVm = hiltViewModel(),
     navigateToAppScreen: (String) -> Unit,
     navigateToAbout: () -> Unit,
+    navigateToSettings: () -> Unit,
 ) {
     val uiState by mainScreenVm.uiState.collectAsState()
     val sb = remember { SnackbarHostState() }
@@ -105,6 +106,10 @@ fun MainScreen(
                 } else {
                     uiState.listOfApps
                 }
+                val visibleApps = displayedApps.filter { app ->
+                    uiState.isExpanded || uiState.isShowSystemAppsHome ||
+                            !app.isSystemApp() || app.isModified()
+                }
                 LazyColumn(
                     state = lazyListState,
                     modifier = Modifier.semantics { traversalIndex = 1f }
@@ -116,10 +121,8 @@ fun MainScreen(
                                 .padding(top = 8.dp)
                         )
                     }
-                    items(displayedApps.size) {
-                        val thisApp = displayedApps[it]
-                        if (!uiState.isExpanded && !uiState.isShowSystemAppsHome && thisApp.isSystemApp() && !thisApp.isModified())
-                            return@items
+                    items(count = visibleApps.size, key = { visibleApps[it].pkg }) { index ->
+                        val thisApp = visibleApps[index]
                         AppListItem(
                             modifier = Modifier.padding(
                                 start = 26.dp,
@@ -172,6 +175,7 @@ fun MainScreen(
                                 onClickToggleDropdown = { mainScreenVm.toggleDropdown() },
                                 onToggleDropdown = { mainScreenVm.toggleDropdown() },
                                 onClickToggleSystemApps = { mainScreenVm.toggleSystemAppsVisibility() },
+                                onClickSettings = { navigateToSettings() },
                                 onClickAbout = { navigateToAbout() }
                             )
                         }

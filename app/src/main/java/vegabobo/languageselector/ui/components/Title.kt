@@ -7,18 +7,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 @Composable
 fun Title(title: String, modifier: Modifier = Modifier) {
     Text(
         text = title,
-        fontSize = 14.sp,
+        style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.Medium,
         color = MaterialTheme.colorScheme.secondary,
         modifier = modifier
-            .padding(start = 18.dp)
-            .padding(bottom = 8.dp)
-            .padding(top = 8.dp)
+            .padding(start = 18.dp, end = 18.dp)
+            // Extra top space visually separates each section (Pinned/Suggested/All);
+            // smaller bottom space keeps the header tied to its rows.
+            .padding(top = 20.dp, bottom = 6.dp)
     )
 }

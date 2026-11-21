@@ -21,13 +21,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import vegabobo.languageselector.BuildConfig
+import vegabobo.languageselector.data.PrefConstants
 import java.util.Locale
 import javax.inject.Inject
-
-object PrefConstants {
-    const val PINNED_LOCALES = "pinned_locales"
-}
-
 
 @HiltViewModel
 class AppInfoVm @Inject constructor(
@@ -67,8 +63,13 @@ class AppInfoVm @Inject constructor(
     fun updateCurrentLanguageState() {
         UserServiceProvider.run {
             val currentLocale = getApplicationLocales(appInfo.packageName)
-            if (!currentLocale.isEmpty)
-                _uiState.update { it.copy(currentLanguage = currentLocale.get(0).capDisplayName()) }
+            _uiState.update {
+                it.copy(currentLanguage = if (currentLocale.isEmpty) {
+                    ""
+                } else {
+                    currentLocale.get(0).capDisplayName()
+                })
+            }
         }
     }
 
@@ -173,5 +174,11 @@ fun Set<String>.parseSetLangs(): MutableList<SingleLocale> {
             Log.e(BuildConfig.APPLICATION_ID, e.stackTraceToString())
             null
         }
-    }.toMutableList()
+    }
+        // De-duplicate by languageTag (not the exact "name,tag" string) so the same
+        // locale saved under a slightly different display name only appears once.
+        .distinctBy { it.languageTag }
+        // Deterministic, stable ordering: alphabetical by display name.
+        .sortedBy { it.name.lowercase() }
+        .toMutableList()
 }

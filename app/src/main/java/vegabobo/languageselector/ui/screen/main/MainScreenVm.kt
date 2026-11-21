@@ -10,6 +10,8 @@ import com.topjohnwu.superuser.Shell
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,14 +19,20 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.coroutineContext
 import org.json.JSONArray
 import org.json.JSONObject
 import rikka.shizuku.Shizuku
 import vegabobo.languageselector.BuildConfig
+import vegabobo.languageselector.IUserService
 import vegabobo.languageselector.RootReceivedListener
 import vegabobo.languageselector.dao.AppInfoDb
+import vegabobo.languageselector.data.AppListRefreshBus
 import vegabobo.languageselector.service.UserServiceProvider
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 
@@ -32,7 +40,8 @@ import javax.inject.Inject
 class MainScreenVm @Inject constructor(
     val app: Application,
     appInfoDb: AppInfoDb,
-    private val sharedPreferences: SharedPreferences
+    private val sharedPreferences: SharedPreferences,
+    private val refreshBus: AppListRefreshBus,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         MainScreenState(
@@ -42,47 +51,58 @@ class MainScreenVm @Inject constructor(
     val uiState: StateFlow<MainScreenState> = _uiState.asStateFlow()
     var lastSelectedApp: AppInfo? = null
     val dao = appInfoDb.appInfoDao()
-    private var localeScanJob: Job? = null
+    private var fillListJob: Job? = null
+    private var reloadJob: Job? = null
+    private var searchJob: Job? = null
+    private val loadMutex = Mutex()
+    private var invalidateCacheOnNextLoad = false
     private val shizukuPermissionResultListener =
         Shizuku.OnRequestPermissionResultListener { _, grantResult ->
-            _uiState.update {
-                it.copy(
-                    operationMode = if (grantResult == PackageManager.PERMISSION_GRANTED) {
-                        OperationMode.SHIZUKU
-                    } else {
-                        OperationMode.NONE
+            viewModelScope.launch {
+                if (_uiState.value.operationMode != OperationMode.ROOT) {
+                    _uiState.update {
+                        it.copy(operationMode = if (grantResult == PackageManager.PERMISSION_GRANTED) {
+                            OperationMode.SHIZUKU
+                        } else {
+                            OperationMode.NONE
+                        })
                     }
-                )
+                    refreshFromSystem()
+                }
             }
         }
+
+    // Preserve known locale labels between ordinary loads; explicit refresh clears
+    // this and the persisted cache before rebuilding from the system.
+    private val appInfoCache = ConcurrentHashMap<String, AppInfo>()
 
     fun getIndexFromAppInfoItem(): Int {
         return _uiState.value.listOfApps.indexOfFirst { it.pkg == lastSelectedApp?.pkg }
     }
 
-    fun loadOperationMode() {
-        if (Shell.getShell().isAlive)
-            Shell.getShell().close()
+    private suspend fun loadOperationMode() {
+        if (Shell.getShell().isAlive) Shell.getShell().close()
         Shell.getShell()
-        if (Shell.isAppGrantedRoot() == true) {
-            _uiState.update { it.copy(operationMode = OperationMode.ROOT) }
-            RootReceivedListener.onRootReceived()
-            return
+        val mode = when {
+            Shell.isAppGrantedRoot() == true -> OperationMode.ROOT
+            Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED ->
+                OperationMode.SHIZUKU
+            else -> OperationMode.NONE
         }
-
-        val isAvail = Shizuku.pingBinder() &&
-                Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-        if (isAvail) {
-            _uiState.update { it.copy(operationMode = OperationMode.SHIZUKU) }
-            return
+        withContext(Dispatchers.Main) {
+            _uiState.update { it.copy(operationMode = mode) }
+            if (mode == OperationMode.ROOT) RootReceivedListener.onRootReceived()
         }
-
-        _uiState.update { it.copy(operationMode = OperationMode.NONE) }
     }
 
     init {
         Shizuku.addRequestPermissionResultListener(shizukuPermissionResultListener)
         fillListOfApps()
+        viewModelScope.launch {
+            refreshBus.requests.collect {
+                refreshFromSystem()
+            }
+        }
     }
 
     override fun onCleared() {
@@ -103,118 +123,125 @@ class MainScreenVm @Inject constructor(
         )
     }
 
-    fun parseAppInfo(a: ApplicationInfo): AppInfo {
-        val basicAppInfo = parseBasicAppInfo(a)
-        val service = UserServiceProvider.getService()
-        val languagePreferences = service.getApplicationLocales(a.packageName)
-        val labels = basicAppInfo.labels.toMutableList()
-        if (!languagePreferences.isEmpty)
-            labels.add(AppLabels.MODIFIED)
-        return basicAppInfo.copy(labels = labels)
+    private fun sortApps(apps: List<AppInfo>): List<AppInfo> =
+        apps.sortedWith(compareByDescending<AppInfo> { it.isModified() }.thenBy { it.name.lowercase() })
+
+    fun refreshFromSystem() {
+        invalidateCacheOnNextLoad = true
+        _uiState.update { it.copy(isLoading = true) }
+        fillListOfApps()
     }
 
     fun fillListOfApps() {
-        localeScanJob?.cancel()
-        viewModelScope.launch(Dispatchers.IO) {
-            val cachedApps = loadCachedAppList()
-            val showedCachedApps = displayCachedAppList(cachedApps)
-            val cachedModifiedPackages = cachedApps
-                .filter { it.isModified() }
-                .mapTo(mutableSetOf()) { it.pkg }
-            if (_uiState.value.operationMode == OperationMode.CHECKING)
-                loadOperationMode()
-            val packages = getInstalledPackages()
-            val basicList = packages.map { packageInfo ->
-                parseBasicAppInfo(packageInfo).let { appInfo ->
-                    if (appInfo.pkg in cachedModifiedPackages) {
-                        appInfo.copy(labels = appInfo.labels + AppLabels.MODIFIED)
-                    } else {
-                        appInfo
+        // All callers and job-handle assignment run on Main. The mutex also waits for
+        // non-suspending PackageManager/Binder work in an old cancelled load to finish
+        // before the replacement invalidates either cache.
+        fillListJob?.cancel()
+        reloadJob?.cancel()
+        searchJob?.cancel()
+        fillListJob = viewModelScope.launch {
+            loadMutex.withLock {
+                val invalidate = invalidateCacheOnNextLoad
+                if (invalidate) {
+                    withContext(Dispatchers.IO) {
+                        appInfoCache.clear()
+                        sharedPreferences.edit().remove(PREF_APP_LIST_CACHE).apply()
                     }
+                    // Consume only after successful dispatch back to Main. A cancelled
+                    // replacement must not lose a pending invalidation request.
+                    invalidateCacheOnNextLoad = false
                 }
-            }.sortedWith(
-                compareByDescending<AppInfo> { it.isModified() }
-                    .thenBy { it.name.lowercase() }
-            )
-            replaceAppLists(basicList)
-            saveCachedAppList(basicList)
-            if (!showedCachedApps) {
-                withContext(Dispatchers.Main) {
-                    _uiState.update { it.copy(isLoading = false) }
+                withContext(Dispatchers.IO) {
+                    if (_uiState.value.operationMode == OperationMode.CHECKING) {
+                        loadOperationMode()
+                    }
+                    val hasAccess = _uiState.value.operationMode != OperationMode.NONE
+                    val cachedApps = loadCachedAppList().map { appInfo ->
+                        appInfo.withModifiedState(null, hasAccess)
+                    }
+                    if (invalidate || !hasAccess) {
+                        withContext(Dispatchers.Main) {
+                            val cleared = _uiState.value.listOfApps.map {
+                                it.withModifiedState(false, hasAccess)
+                            }
+                            replaceAppLists(sortApps(cleared))
+                            _uiState.value.history.clear()
+                        }
+                    }
+                    val showedCachedApps = displayCachedAppList(cachedApps)
+                    val cachedByPackage = cachedApps.associateBy { it.pkg }
+                    val packages = getInstalledPackages()
+                    val basicList = packages.map { packageInfo ->
+                        coroutineContext.ensureActive()
+                        val basic = parseBasicAppInfo(packageInfo)
+                        val cached = appInfoCache[basic.pkg] ?: cachedByPackage[basic.pkg]
+                        basic.withModifiedState(cached?.isModified(), hasAccess)
+                    }
+                    val sorted = sortApps(basicList)
+                    replaceAppLists(sorted)
+                    coroutineContext.ensureActive()
+                    saveCachedAppList(sorted)
+                    if (!showedCachedApps) {
+                        withContext(Dispatchers.Main) {
+                            _uiState.update { it.copy(isLoading = false) }
+                        }
+                    }
+                    if (hasAccess) scanLanguageStates(packages)
                 }
             }
-            scanLanguageStates(packages)
         }
     }
 
-    private fun scanLanguageStates(packages: List<ApplicationInfo>) {
-        localeScanJob = viewModelScope.launch(Dispatchers.IO) {
-            val service = runCatching { UserServiceProvider.getService() }.getOrNull() ?: return@launch
-            val modifiedPackages = mutableSetOf<String>()
-            val pendingModifiedPackages = mutableSetOf<String>()
-            var scannedCount = 0
-            var lastUiUpdateAt = 0L
-
-            for (packageInfo in packages) {
-                val languagePreferences = runCatching {
-                    service.getApplicationLocales(packageInfo.packageName)
-                }.getOrNull()
-
-                if (languagePreferences?.isEmpty == false && modifiedPackages.add(packageInfo.packageName)) {
-                    pendingModifiedPackages.add(packageInfo.packageName)
-                }
-
-                scannedCount++
-                val now = System.currentTimeMillis()
-                if (pendingModifiedPackages.isNotEmpty() &&
-                    scannedCount % LOCALE_SCAN_BATCH_SIZE == 0 &&
-                    now - lastUiUpdateAt >= LOCALE_SCAN_UPDATE_MIN_INTERVAL_MS
-                ) {
-                    applyLanguageScanDelta(pendingModifiedPackages.toSet())
-                    pendingModifiedPackages.clear()
-                    lastUiUpdateAt = now
-                }
-
-                if (scannedCount % LOCALE_SCAN_COOPERATIVE_YIELD_SIZE == 0) {
-                    delay(1)
-                }
+    private suspend fun scanLanguageStates(packages: List<ApplicationInfo>) {
+        // This is part of fillListJob, never a new viewModelScope job. Refresh and
+        // permission changes cancel the *whole* pipeline, including this scan.
+        val service = UserServiceProvider.getServiceOrNull() ?: return
+        val observations = mutableMapOf<String, Boolean>()
+        var lastUiUpdateAt = 0L
+        for ((index, packageInfo) in packages.withIndex()) {
+            coroutineContext.ensureActive()
+            val modified = readModifiedState(service, packageInfo.packageName)
+            coroutineContext.ensureActive()
+            // A failed Binder read is unknown, not a successful empty locale list.
+            if (modified != null) observations[packageInfo.packageName] = modified
+            val now = System.currentTimeMillis()
+            if ((index + 1) % LOCALE_SCAN_BATCH_SIZE == 0 &&
+                now - lastUiUpdateAt >= LOCALE_SCAN_UPDATE_MIN_INTERVAL_MS
+            ) {
+                applyLanguageScan(observations)
+                lastUiUpdateAt = now
             }
-
-            if (pendingModifiedPackages.isNotEmpty()) {
-                applyLanguageScanDelta(pendingModifiedPackages)
-            }
-            applyLanguageScanFinalSort(modifiedPackages)
+            if ((index + 1) % LOCALE_SCAN_COOPERATIVE_YIELD_SIZE == 0) delay(1)
         }
+        applyLanguageScan(observations)
     }
 
-    private suspend fun applyLanguageScanDelta(newModifiedPackages: Set<String>) {
-        withContext(Dispatchers.Main) {
-            updateModifiedLabelsInPlace(_uiState.value.listOfApps, newModifiedPackages)
-            updateModifiedLabelsInPlace(_uiState.value.searchResults, newModifiedPackages)
-        }
+    private fun readModifiedState(service: IUserService, pkg: String): Boolean? = try {
+        !service.getApplicationLocales(pkg).isEmpty
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        null
     }
 
-    private suspend fun applyLanguageScanFinalSort(modifiedPackages: Set<String>) {
-        val appsSnapshot = withContext(Dispatchers.Main) {
-            _uiState.value.listOfApps.toList()
+    private suspend fun applyLanguageScan(observations: Map<String, Boolean>) {
+        val sortedApps = withContext(Dispatchers.Main) {
+            sortApps(_uiState.value.listOfApps.map { appInfo ->
+                appInfo.withModifiedState(observations[appInfo.pkg], true)
+            }).also { apps ->
+                appInfoCache.clear()
+                appInfoCache.putAll(apps.associateBy { it.pkg })
+                replaceAppLists(apps)
+            }
         }
-        val sortedApps = withContext(Dispatchers.Default) {
-            appsSnapshot.map { appInfo ->
-                val labels = appInfo.labels.toMutableList()
-                val isModified = appInfo.pkg in modifiedPackages
-                if (isModified && !labels.contains(AppLabels.MODIFIED)) {
-                    labels.add(AppLabels.MODIFIED)
-                } else if (!isModified) {
-                    labels.remove(AppLabels.MODIFIED)
-                }
-                appInfo.copy(labels = labels)
-            }.sortedWith(
-                compareByDescending<AppInfo> { it.isModified() }
-                    .thenBy { it.name.lowercase() }
-            )
-        }
-        replaceAppLists(sortedApps)
+        coroutineContext.ensureActive()
         saveCachedAppList(sortedApps)
+    }
+
+    private fun AppInfo.withModifiedState(observed: Boolean?, hasAccess: Boolean): AppInfo {
+        val modified = resolveModifiedState(isModified(), observed, hasAccess)
+        val nextLabels = labels.filterNot { it == AppLabels.MODIFIED }
+        return copy(labels = if (modified) nextLabels + AppLabels.MODIFIED else nextLabels)
     }
 
     private suspend fun displayCachedAppList(cachedApps: List<AppInfo>): Boolean {
@@ -250,7 +277,7 @@ class MainScreenVm @Inject constructor(
                     )
                 )
             }
-            apps
+            apps.distinctBy { it.pkg }
         }.getOrDefault(emptyList())
     }
 
@@ -271,26 +298,11 @@ class MainScreenVm @Inject constructor(
             .apply()
     }
 
-    private fun updateModifiedLabelsInPlace(apps: MutableList<AppInfo>, modifiedPackages: Set<String>) {
-        for (index in apps.indices) {
-            val appInfo = apps[index]
-            if (appInfo.pkg !in modifiedPackages || appInfo.isModified()) {
-                continue
-            }
-            apps[index] = appInfo.copy(labels = appInfo.labels + AppLabels.MODIFIED)
-        }
-    }
-
     private suspend fun replaceAppLists(apps: List<AppInfo>) {
         withContext(Dispatchers.Main) {
             _uiState.value.listOfApps.clear()
             _uiState.value.listOfApps.addAll(apps)
-            if (_uiState.value.searchTextFieldValue.isBlank()) {
-                _uiState.value.searchResults.clear()
-                _uiState.value.searchResults.addAll(apps)
-            } else {
-                launchSearch(_uiState.value.searchTextFieldValue, debounce = false)
-            }
+            launchSearch(_uiState.value.searchTextFieldValue, debounce = false)
         }
     }
 
@@ -315,21 +327,14 @@ class MainScreenVm @Inject constructor(
         sharedPreferences.edit()
             .putBoolean(PREF_SHOW_SYSTEM_APPS_HOME, newShowSystemApps)
             .apply()
-        _uiState.update {
-            it.copy(
-                isLoading = true,
-                isShowSystemAppsHome = newShowSystemApps
-            )
-        }
-        fillListOfApps()
+        _uiState.update { it.copy(isShowSystemAppsHome = newShowSystemApps) }
         toggleDropdown()
     }
 
     fun onClickProceedShizuku() {
-        loadOperationMode()
+        _uiState.update { it.copy(operationMode = OperationMode.CHECKING) }
+        refreshFromSystem()
     }
-
-    private var searchJob: Job? = null
 
     companion object {
         private const val SEARCH_DEBOUNCE_MS = 300L
@@ -376,12 +381,14 @@ class MainScreenVm @Inject constructor(
                     appsSnapshot
                 } else {
                     appsSnapshot.filter {
+                        ensureActive()
                         it.pkg.lowercase().contains(normalizedQuery) ||
                                 it.name.lowercase().contains(normalizedQuery)
                     }
                 }
 
                 queryFiltered.filter { app ->
+                    ensureActive()
                     if (requireModified && !app.isModified()) {
                         return@filter false
                     }
@@ -421,16 +428,10 @@ class MainScreenVm @Inject constructor(
     }
 
     fun updateHistory() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val appInfoList = dao.getHistory().map { it.pkg }
-            val history = appInfoList.mapNotNull { pkg ->
-                val listOfApps = _uiState.value.listOfApps
-                val idx = listOfApps.indexOfFirst { it.pkg == pkg }
-                if (idx == -1)
-                    null
-                else
-                    listOfApps[idx]
-            }
+        viewModelScope.launch {
+            val packages = withContext(Dispatchers.IO) { dao.getHistory().map { it.pkg } }
+            val apps = _uiState.value.listOfApps.associateBy { it.pkg }
+            val history = packages.mapNotNull { apps[it] }
             _uiState.value.history.clear()
             _uiState.value.history.addAll(history)
         }
@@ -454,22 +455,38 @@ class MainScreenVm @Inject constructor(
     }
 
     fun reloadLastSelectedItem() {
-        if (lastSelectedApp == null) return
-        val pkg = app.packageManager.getApplicationInfo(lastSelectedApp!!.pkg, 0)
-        val updatedAi = parseAppInfo(pkg)
-        val apps = _uiState.value.listOfApps
-        val idx = apps.indexOfFirst { it.pkg == updatedAi.pkg }
-        if (idx != -1 && updatedAi.labels != apps[idx].labels) {
-            apps[idx] = updatedAi
-            val newList = _uiState.value.listOfApps.sortedBy { it.name.lowercase() }
-                .sortedBy { !it.isModified() }.toMutableList()
-            _uiState.update {
-                it.copy(
-                    listOfApps = newList,
-                    snackBarDisplay = if (updatedAi.isModified()) SnackBarDisplay.MOVED_TO_TOP else SnackBarDisplay.MOVED_TO_BOTTOM
-                )
+        val selected = lastSelectedApp ?: return
+        reloadJob?.cancel()
+        reloadJob = viewModelScope.launch {
+            loadMutex.withLock {
+                if (_uiState.value.operationMode == OperationMode.NONE) return@withLock
+                val updatedAi = withContext(Dispatchers.IO) {
+                    val service = UserServiceProvider.getServiceOrNull() ?: return@withContext null
+                    val modified = readModifiedState(service, selected.pkg) ?: return@withContext null
+                    val pkg = try {
+                        app.packageManager.getApplicationInfo(selected.pkg, 0)
+                    } catch (_: PackageManager.NameNotFoundException) {
+                        return@withContext null
+                    }
+                    parseBasicAppInfo(pkg).withModifiedState(modified, true)
+                } ?: return@withLock
+                val apps = _uiState.value.listOfApps
+                val idx = apps.indexOfFirst { it.pkg == updatedAi.pkg }
+                if (idx != -1 && updatedAi.labels != apps[idx].labels) {
+                    appInfoCache[updatedAi.pkg] = updatedAi
+                    apps[idx] = updatedAi
+                    val newList = sortApps(apps)
+                    replaceAppLists(newList)
+                    _uiState.update {
+                        it.copy(snackBarDisplay = if (updatedAi.isModified()) {
+                            SnackBarDisplay.MOVED_TO_TOP
+                        } else {
+                            SnackBarDisplay.MOVED_TO_BOTTOM
+                        })
+                    }
+                    withContext(Dispatchers.IO) { saveCachedAppList(newList) }
+                }
             }
-            return
         }
     }
 

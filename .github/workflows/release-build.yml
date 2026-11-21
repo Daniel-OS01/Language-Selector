@@ -1,147 +1,169 @@
-name: Build and Publish APK on Updates
+name: Validate Android Build
 
 on:
   push:
     branches: [main, work]
-    paths-ignore:
-      - 'README.md'
-      - '.github/**'
+    paths:
+      - '.github/workflows/**'
+      - 'app/**'
+      - 'hidden_api/**'
+      - 'gradle/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'scripts/ci/**'
+  pull_request:
+    branches: [main, work]
+    paths:
+      - '.github/workflows/**'
+      - 'app/**'
+      - 'hidden_api/**'
+      - 'gradle/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'scripts/ci/**'
   workflow_dispatch:
-  schedule:
-    # Monday 06:15 Hong Kong time, after both Dependabot schedules.
-    - cron: '15 22 * * 0'
 
-# Prevent duplicate runs for the same branch or tag.
+permissions:
+  contents: read
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref != 'refs/heads/main' }}
 
 jobs:
-  pending-dependencies:
-    if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      found: ${{ steps.scan.outputs.found }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Check for merged Dependabot updates since the latest release
-        id: scan
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          latest_tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')
-          git merge-base --is-ancestor "$latest_tag" HEAD
-          update=$(git log --format=%H --max-count=1 --fixed-strings \
-            --grep='Co-authored-by: dependabot[bot] <' \
-            --grep='Signed-off-by: dependabot[bot] <' "$latest_tag..HEAD")
-          if [[ -n "$update" ]]; then
-            echo "found=true" >> "$GITHUB_OUTPUT"
-          fi
-
   build:
-    needs: pending-dependencies
-    if: ${{ !cancelled() && (github.event_name != 'schedule' || needs.pending-dependencies.outputs.found == 'true') }}
+    name: Test and build release APK
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    timeout-minutes: 45
     env:
-      RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-      RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
-      RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-      RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+      CI_VERSION_CODE: ${{ github.run_number }}
+    outputs:
+      short_sha: ${{ steps.release_metadata.outputs.short_sha }}
+      apk_name: ${{ steps.validate_apk.outputs.apk_name }}
+      build_tools: ${{ steps.android_versions.outputs.build_tools }}
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Set up Java
-        uses: actions/setup-java@v6.1.0
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
         with:
           distribution: temurin
           java-version: '21'
-          cache: gradle
 
-      - name: Set up Android SDK (cmdline-tools)
-        uses: android-actions/setup-android@v4
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
 
-      - name: Install platform-tools, platform 37.0, build-tools 36.0.0
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
         run: |
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-37.0" "build-tools;36.0.0"
+          archive="$RUNNER_TEMP/actionlint.tar.gz"
+          curl --fail --location --retry 3 --retry-all-errors \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            --output "$archive"
+          echo "$ACTIONLINT_SHA256  $archive" | sha256sum --check --strict
+          tar --extract --gzip --file "$archive" --directory "$RUNNER_TEMP" actionlint
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Bump patch version for main releases
-        if: ${{ github.ref == 'refs/heads/main' && (github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')) }}
+      - name: Lint GitHub Actions workflows and CI shell
         run: |
-          python3 - <<'PY'
-          import re
-          from pathlib import Path
+          actionlint
+          shellcheck scripts/ci/check_release_signing.sh
+          shellcheck scripts/ci/resolve_next_version.sh
+          shellcheck scripts/ci/prepare_release.sh
 
-          path = Path("app/build.gradle.kts")
-          text = path.read_text()
-
-          version_name_match = re.search(r'versionName\s*=\s*"(\d+)\.(\d+)\.(\d+)"', text)
-          version_code_match = re.search(r'versionCode\s*=\s*(\d+)', text)
-          if not version_name_match or not version_code_match:
-              raise SystemExit("Could not find semantic versionName and versionCode in app/build.gradle.kts")
-
-          major, minor, patch = map(int, version_name_match.groups())
-          version_code = int(version_code_match.group(1))
-          new_version_name = f"{major}.{minor}.{patch + 1}"
-          new_version_code = version_code + 1
-
-          text = re.sub(r'versionName\s*=\s*"[^"]+"', f'versionName = "{new_version_name}"', text, count=1)
-          text = re.sub(r'versionCode\s*=\s*\d+', f'versionCode = {new_version_code}', text, count=1)
-          path.write_text(text)
-          print(f"Bumped app version to {new_version_name} ({new_version_code})")
-          PY
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/build.gradle.kts
-          git commit -m "Bump app version for release [skip ci]"
-          git push
-
-      - name: Set release commit
-        run: echo "RELEASE_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
-
-      - name: Decode release keystore
-        if: ${{ env.RELEASE_KEYSTORE_BASE64 != '' }}
+      - name: Read and install configured Android platform and build tools
+        id: android_versions
         run: |
-          echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > $HOME/release.keystore
-          echo "RELEASE_SIGNING_KEYSTORE=$HOME/release.keystore" >> $GITHUB_ENV
-          echo "RELEASE_SIGNING_KEYSTORE_PASSWORD=$RELEASE_KEYSTORE_PASSWORD" >> $GITHUB_ENV
-          echo "RELEASE_SIGNING_KEY_ALIAS=$RELEASE_KEY_ALIAS" >> $GITHUB_ENV
-          echo "RELEASE_SIGNING_KEY_PASSWORD=$RELEASE_KEY_PASSWORD" >> $GITHUB_ENV
+          compile_sdk=$(sed -n 's/^android\.compileSdk=//p' gradle.properties)
+          build_tools=$(sed -n 's/^android\.buildTools=//p' gradle.properties)
+          if [[ -z "$compile_sdk" || $(grep -c '^android\.compileSdk=' gradle.properties) -ne 1 ]]; then
+            echo "android.compileSdk must be declared exactly once in gradle.properties" >&2
+            exit 1
+          fi
+          if [[ -z "$build_tools" || $(grep -c '^android\.buildTools=' gradle.properties) -ne 1 ]]; then
+            echo "android.buildTools must be declared exactly once in gradle.properties" >&2
+            exit 1
+          fi
+          if [[ ! "$compile_sdk" =~ ^[0-9]+\.[0-9]+$ ]]; then
+            echo "android.compileSdk must be a major.minor release in gradle.properties" >&2
+            exit 1
+          fi
+          if [[ ! "$build_tools" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "android.buildTools must be a major.minor.patch release in gradle.properties" >&2
+            exit 1
+          fi
+          {
+            echo "ANDROID_COMPILE_SDK=$compile_sdk"
+            echo "ANDROID_BUILD_TOOLS=$build_tools"
+          } >> "$GITHUB_ENV"
+          echo "build_tools=$build_tools" >> "$GITHUB_OUTPUT"
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-$compile_sdk" \
+            "build-tools;$build_tools"
 
-      - name: Build release APK
-        run: ./gradlew assembleRelease
+      - name: Test the Shizuku artifact verifier
+        run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
 
-      - name: Read app version
+      - name: Verify configured Shizuku artifacts
+        run: python3 scripts/ci/verify_shizuku_artifacts.py
+
+      - name: Run release tests, lint, and build
+        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest lintRelease assembleRelease
+
+      - name: Compute release metadata
+        id: release_metadata
         run: |
-          VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
-          VERSION_CODE=$(grep -oP 'versionCode\s*=\s*\K\d+' app/build.gradle.kts)
-          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
-          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
-          echo "RELEASE_TAG=v$VERSION_NAME" >> $GITHUB_ENV
+          short_sha=${GITHUB_SHA::7}
+          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
 
-      - name: Publish APK to GitHub Release
-        if: ${{ github.ref == 'refs/heads/main' }}
-        uses: ncipollo/release-action@v1
+      - name: Validate release APK
+        id: validate_apk
+        run: |
+          mapfile -t apks < <(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print)
+          if (( ${#apks[@]} != 1 )); then
+            printf 'Expected exactly one release APK, found %d\n' "${#apks[@]}" >&2
+            printf '%s\n' "${apks[@]}" >&2
+            exit 1
+          fi
+
+          mkdir -p dist
+          apk_name="language-selector-${{ steps.release_metadata.outputs.short_sha }}.apk"
+          cp "${apks[0]}" "dist/$apk_name"
+          echo "apk_name=$apk_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          tag: ${{ env.RELEASE_TAG }}
-          name: "v${{ env.VERSION_NAME }} (${{ env.VERSION_CODE }})"
-          commit: ${{ env.RELEASE_COMMIT }}
-          artifacts: app/build/outputs/apk/release/*.apk
-          artifactContentType: application/vnd.android.package-archive
-          allowUpdates: false
-          replacesArtifacts: false
-          makeLatest: true
+          name: release-apk-${{ github.sha }}
+          path: dist/${{ steps.validate_apk.outputs.apk_name }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Upload diagnostic reports
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-diagnostics-${{ github.run_id }}
+          path: |
+            **/build/reports/**
+            **/build/test-results/**
+          if-no-files-found: ignore
+          retention-days: 14

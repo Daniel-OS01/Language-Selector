@@ -6,16 +6,32 @@ plugins {
     alias(libs.plugins.com.google.devtools.ksp)
 }
 
+val compileSdkParts = providers.gradleProperty("android.compileSdk").get().split('.', limit = 2)
+
+fun resolveVersionCode(): Int {
+    val raw = System.getenv("CI_VERSION_CODE") ?: return 5
+    val parsed = raw.toIntOrNull()
+        ?: error("CI_VERSION_CODE must be an integer from 1 to 2100000000")
+    require(parsed in 1..2_100_000_000) {
+        "CI_VERSION_CODE must be an integer from 1 to 2100000000"
+    }
+    return parsed
+}
+
 android {
     namespace = "vegabobo.languageselector"
-    compileSdk = 37
+    compileSdk {
+        version = release(compileSdkParts[0].toInt()) {
+            minorApiLevel = compileSdkParts[1].toInt()
+        }
+    }
 
     defaultConfig {
-        applicationId = "io.github.ezn24.languageselector"
+        applicationId = "vegabobo.languageselector"
         minSdk = 33
-        targetSdk = 35
-        versionCode = 113
-        versionName = "1.1.3"
+        targetSdk = 37
+        versionCode = resolveVersionCode()
+        versionName = System.getenv("CI_VERSION_NAME") ?: "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -37,8 +53,9 @@ android {
 
     buildTypes {
         release {
-            signingConfig =
-                signingConfigs.findByName("ciRelease") ?: signingConfigs.getByName("debug")
+            signingConfigs.findByName("ciRelease")?.let {
+                signingConfig = it
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -61,9 +78,17 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
 }
 
 dependencies {
+    testImplementation(libs.junit)
+    // Real org.json for JVM unit tests (android.jar stubs throw "not mocked").
+    testImplementation("org.json:json:20250517")
+
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
 

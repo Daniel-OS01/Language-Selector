@@ -1,0 +1,177 @@
+package vegabobo.languageselector.data
+
+import android.content.SharedPreferences
+import org.json.JSONArray
+import org.json.JSONException
+import org.json.JSONObject
+import java.util.UUID
+
+object LocaleBackupCodec {
+    const val SCHEMA_VERSION = 1
+
+    fun encodeBackup(backup: LocaleBackup): String {
+        val root = JSONObject()
+        root.put("schemaVersion", backup.schemaVersion)
+        root.put("exportedAt", backup.exportedAt)
+        root.put("apps", encodeApps(backup.apps))
+        root.put("pinnedLocales", JSONArray(backup.pinnedLocales))
+        root.put("presets", encodePresets(backup.presets))
+        return root.toString()
+    }
+
+    fun decodeBackup(json: String): LocaleBackup {
+        require(json.length <= LocaleBackupLimits.MAX_JSON_CHARS) {
+            "Backup JSON exceeds ${LocaleBackupLimits.MAX_JSON_CHARS} characters"
+        }
+        try {
+            val root = JSONObject(json)
+            val schema = root.optInt("schemaVersion", -1)
+            require(schema == SCHEMA_VERSION) {
+                "Unsupported backup schemaVersion: $schema"
+            }
+            val apps = decodeApps(root.optJSONArray("apps"))
+            val pinnedLocales = decodeStringList(root.optJSONArray("pinnedLocales"))
+            val presets = decodePresets(root.optJSONArray("presets"))
+            require(apps.size <= LocaleBackupLimits.MAX_APPS) {
+                "Backup apps exceed ${LocaleBackupLimits.MAX_APPS}"
+            }
+            require(pinnedLocales.size <= LocaleBackupLimits.MAX_PINNED) {
+                "Backup pinnedLocales exceed ${LocaleBackupLimits.MAX_PINNED}"
+            }
+            require(presets.size <= LocaleBackupLimits.MAX_PRESETS) {
+                "Backup presets exceed ${LocaleBackupLimits.MAX_PRESETS}"
+            }
+            return LocaleBackup(
+                schemaVersion = schema,
+                exportedAt = root.optLong("exportedAt", 0L),
+                apps = apps,
+                pinnedLocales = pinnedLocales,
+                presets = presets,
+            )
+        } catch (e: JSONException) {
+            throw IllegalArgumentException("Invalid backup JSON", e)
+        }
+    }
+
+    fun encodePresets(presets: List<LocalePreset>): JSONArray {
+        val array = JSONArray()
+        for (preset in presets) {
+            array.put(encodePreset(preset))
+        }
+        return array
+    }
+
+    fun decodePresets(array: JSONArray?): List<LocalePreset> {
+        if (array == null) return emptyList()
+        val out = ArrayList<LocalePreset>(array.length())
+        for (i in 0 until array.length()) {
+            val obj = try {
+                array.optJSONObject(i)
+            } catch (_: JSONException) {
+                null
+            } ?: continue
+            val preset = decodePreset(obj) ?: continue
+            out.add(preset)
+        }
+        return out
+    }
+
+    fun loadPresets(sp: SharedPreferences): List<LocalePreset> {
+        val raw = sp.getString(PrefConstants.LOCALE_PRESETS, null) ?: return emptyList()
+        return try {
+            decodePresets(JSONArray(raw))
+        } catch (_: JSONException) {
+            emptyList()
+        }
+    }
+
+    fun savePresets(sp: SharedPreferences, presets: List<LocalePreset>) {
+        sp.edit()
+            .putString(PrefConstants.LOCALE_PRESETS, encodePresets(presets).toString())
+            .apply()
+    }
+
+    fun loadPinnedLocales(sp: SharedPreferences): List<String> {
+        return (sp.getStringSet(PrefConstants.PINNED_LOCALES, emptySet()) ?: emptySet())
+            .toList()
+            .sorted()
+    }
+
+    fun savePinnedLocales(sp: SharedPreferences, pinned: Collection<String>) {
+        sp.edit()
+            .putStringSet(PrefConstants.PINNED_LOCALES, pinned.toSet())
+            .apply()
+    }
+
+    fun createPreset(
+        name: String,
+        apps: List<AppLocaleEntry>,
+        createdAt: Long = System.currentTimeMillis(),
+        id: String = UUID.randomUUID().toString(),
+    ): LocalePreset {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "Preset name must not be blank" }
+        return LocalePreset(
+            id = id,
+            name = trimmed,
+            createdAt = createdAt,
+            apps = apps,
+        )
+    }
+
+    private fun encodePreset(preset: LocalePreset): JSONObject {
+        return JSONObject()
+            .put("id", preset.id)
+            .put("name", preset.name)
+            .put("createdAt", preset.createdAt)
+            .put("apps", encodeApps(preset.apps))
+    }
+
+    private fun decodePreset(obj: JSONObject): LocalePreset? {
+        val id = obj.optString("id", "")
+        val name = obj.optString("name", "")
+        if (id.isBlank() || name.isBlank()) return null
+        return LocalePreset(
+            id = id,
+            name = name,
+            createdAt = obj.optLong("createdAt", 0L),
+            apps = decodeApps(obj.optJSONArray("apps")),
+        )
+    }
+
+    private fun encodeApps(apps: List<AppLocaleEntry>): JSONArray {
+        val array = JSONArray()
+        for (app in apps) {
+            array.put(
+                JSONObject()
+                    .put("packageName", app.packageName)
+                    .put("languageTag", app.languageTag)
+            )
+        }
+        return array
+    }
+
+    private fun decodeApps(array: JSONArray?): List<AppLocaleEntry> {
+        if (array == null) return emptyList()
+        val out = ArrayList<AppLocaleEntry>(array.length())
+        for (i in 0 until array.length()) {
+            val obj = array.optJSONObject(i) ?: continue
+            val packageName = obj.optString("packageName", "")
+            val languageTag = obj.optString("languageTag", "")
+            if (packageName.isNotBlank() && languageTag.isNotBlank()) {
+                out.add(AppLocaleEntry(packageName, languageTag))
+            }
+        }
+        return out
+    }
+
+    private fun decodeStringList(array: JSONArray?): List<String> {
+        if (array == null) return emptyList()
+        val out = ArrayList<String>(array.length())
+        for (i in 0 until array.length()) {
+            val value = array.optString(i, "")
+            if (value.isNotBlank()) out.add(value)
+        }
+        return out
+    }
+}

@@ -13,7 +13,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
-import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.ipc.RootService
 import dagger.hilt.android.AndroidEntryPoint
 import rikka.shizuku.Shizuku
@@ -39,16 +38,15 @@ object ShizukuArgs {
 @AndroidEntryPoint
 class MainActivity : ComponentActivity(), Shizuku.OnRequestPermissionResultListener {
 
-    init {
-        Shell.enableVerboseLogging = BuildConfig.DEBUG
-        Shell.setDefaultBuilder(Shell.Builder.create().setTimeout(10))
-    }
-
     val acRequestCode = 1
     private var hasRequestedShizukuPermission = false
 
     fun bindShizuku() {
-        Shizuku.bindUserService(ShizukuArgs.userServiceArgs, UserServiceProvider.connection)
+        try {
+            Shizuku.bindUserService(ShizukuArgs.userServiceArgs, UserServiceProvider.connection)
+        } catch (e: Exception) {
+            Log.e(BuildConfig.APPLICATION_ID, "bindShizuku failed: ${e.stackTraceToString()}")
+        }
     }
 
     private val REQUEST_PERMISSION_RESULT_LISTENER = this::onRequestPermissionResult
@@ -85,8 +83,12 @@ class MainActivity : ComponentActivity(), Shizuku.OnRequestPermissionResultListe
 
         RootReceivedListener.setListener(object : IRootListener {
             override fun onRootReceived() {
-                val intent = Intent(application, RootUserService::class.java)
-                RootService.bind(intent, UserServiceProvider.connection)
+                try {
+                    val intent = Intent(application, RootUserService::class.java)
+                    RootService.bind(intent, UserServiceProvider.connection)
+                } catch (e: Exception) {
+                    Log.e(BuildConfig.APPLICATION_ID, "RootService.bind failed: ${e.stackTraceToString()}")
+                }
             }
         })
     }

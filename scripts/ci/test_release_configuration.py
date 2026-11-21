@@ -40,6 +40,17 @@ class ReleaseConfigurationTest(unittest.TestCase):
             re.findall(r'applicationId\s*=\s*"([^"]+)"', app_build),
         )
 
+    def test_android_setup_avoids_removed_legacy_tools_package(self) -> None:
+        for workflow in (VALIDATE_WORKFLOW, PUBLISH_WORKFLOW):
+            text = workflow.read_text(encoding="utf-8")
+            steps = re.findall(
+                r"uses: android-actions/setup-android@[^\n]+\n(.*?)(?=\n      -|\Z)",
+                text, re.DOTALL,
+            )
+            self.assertTrue(steps)
+            for step in steps:
+                self.assertRegex(step, r"packages: platform-tools\s*(?:\n|$)")
+
     def test_compile_sdk_has_one_value_used_by_modules_and_ci(self) -> None:
         properties = (REPOSITORY_ROOT / "gradle.properties").read_text(encoding="utf-8")
         matches = re.findall(r"^android\.compileSdk=(.+)$", properties, flags=re.MULTILINE)

@@ -1,6 +1,7 @@
 package vegabobo.languageselector.service
 
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -32,8 +33,14 @@ object UserServiceProvider {
             delay(1000)
             Log.d(tag, "Service unavailable, checking again in 1s.. [${elapsed / 1000}s/20s]")
         }
-        val svc = connection.SERVICE!!
-        val uid = svc.uid
+        val svc = connection.SERVICE ?: return null
+        val uid = try {
+            svc.uid
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            return null
+        }
         Log.d(tag, "IUserService available, uid: $uid")
         if (uid == 0) opMode = OperationMode.ROOT
         if (uid <= 2000) opMode = OperationMode.SHIZUKU
@@ -44,10 +51,24 @@ object UserServiceProvider {
         onFail: () -> Unit = {},
         onConnected: suspend IUserService.() -> Unit,
     ) {
-        fun service() = connection.SERVICE!!
+        suspend fun invokeConnected() {
+            val service = connection.SERVICE
+            if (service == null) {
+                onFail()
+                return
+            }
+            try {
+                onConnected(service)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                Log.w(tag, "Language service operation failed")
+                onFail()
+            }
+        }
         CoroutineScope(Dispatchers.IO).launch {
             if (isConnected()) {
-                onConnected(service())
+                invokeConnected()
                 return@launch
             }
             var timeout = 0
@@ -61,11 +82,21 @@ object UserServiceProvider {
                 delay(1000)
                 Log.d(tag, "Service unavailable, checking again in 1s.. [${timeout / 1000}s/20s]")
             }
-            val serviceUid = service().uid
+            val serviceUid = try {
+                connection.SERVICE?.uid ?: run {
+                    onFail()
+                    return@launch
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                onFail()
+                return@launch
+            }
             Log.d(tag, "IUserService available, uid: $serviceUid")
             if (serviceUid == 0) opMode = OperationMode.ROOT
             if (serviceUid <= 2000) opMode = OperationMode.SHIZUKU
-            onConnected(service())
+            invokeConnected()
         }
     }
 

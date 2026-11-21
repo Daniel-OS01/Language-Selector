@@ -2,7 +2,7 @@
 # Resolve the next SemVer for a publishable APK release.
 #
 # Inputs (env):
-#   BUMP              - minor (default) | major
+#   BUMP              - patch | minor (default) | major
 #   GITHUB_SHA        - commit being released (required)
 #   FALLBACK_VERSION  - last known version when no v* tags exist (default 2.0.0)
 #   GITHUB_OUTPUT     - optional; when set, writes GitHub Actions outputs
@@ -22,8 +22,8 @@ comp='(0|[1-9][0-9]{0,2})'
 semver_re="^${comp}\\.${comp}\\.${comp}$"
 tag_re="^v${comp}\\.${comp}\\.${comp}$"
 
-if [[ "$bump" != "minor" && "$bump" != "major" ]]; then
-  printf 'BUMP must be minor or major, got: %s\n' "$bump" >&2
+if [[ "$bump" != "patch" && "$bump" != "minor" && "$bump" != "major" ]]; then
+  printf 'BUMP must be patch, minor or major, got: %s\n' "$bump" >&2
   exit 1
 fi
 
@@ -82,6 +82,9 @@ bump_version() {
   local major minor patch
   IFS=. read -r major minor patch <<< "$current"
   case "$mode" in
+    patch)
+      patch=$((patch + 1))
+      ;;
     major)
       major=$((major + 1))
       minor=0

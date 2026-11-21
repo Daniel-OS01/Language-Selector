@@ -83,7 +83,7 @@ This is not a SemVer release notes file for every `v*` tag; it documents **theme
 | Workflow | Role |
 | --- | --- |
 | `release-build.yml` (“Validate Android Build”) | Tests, lint, actionlint, Shizuku artifact check, **unsigned** assemble — no Releases |
-| `publish-apk.yml` (“Publish APK”) | Signed assemble + GitHub Release |
+| `publish-apk.yml` (“Publish APK”) | Tests, lint, signed assemble + GitHub Release |
 
 ### Signing
 
@@ -96,9 +96,9 @@ This is not a SemVer release notes file for every `v*` tag; it documents **theme
 - User-visible **`versionName`** SemVer (`CI_VERSION_NAME`)
 - **`versionCode`** = `major*1_000_000 + minor*1_000 + patch`
 - Tags: `vMAJOR.MINOR.PATCH` (not `sha-<full-sha>`)
-- Push to `main` (path-filtered) → **minor** bump; manual dispatch can choose **major**
+- Push to `main` (path-filtered) / weekly Dependabot update scan → **patch** bump; manual dispatch chooses **minor** or **major**
 - Resolver: [`scripts/ci/resolve_next_version.sh`](../scripts/ci/resolve_next_version.sh)
-- Fallback last version without `v*` tags: `2.0.0` → first publish `v2.1.0`
+- Fallback last version without `v*` tags: `2.0.0` → first automatic publish `v2.0.1` (manual minor: `v2.1.0`)
 
 ### Lint / test hardening
 
@@ -114,7 +114,7 @@ This is not a SemVer release notes file for every `v*` tag; it documents **theme
 - Cloud sync / encryption of presets
 - Compose UI instrumentation tests
 - Retagging or deleting historical `sha-*` GitHub Releases
-- Auto-patch SemVer channel (patch stays `0`)
+
 
 ---
 

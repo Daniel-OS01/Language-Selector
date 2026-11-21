@@ -47,7 +47,7 @@ class QSTile : TileService() {
     }
 
     private fun updateTile() {
-        UserServiceProvider.run {
+        UserServiceProvider.run(onFail = { setDisabledTile() }) {
             val currentAppPackage = firstRunningTaskPackage
             targetPackage =
                 packageManager.getApplicationInfo(
@@ -62,19 +62,15 @@ class QSTile : TileService() {
                 setDisabledTile()
                 return@run
             }
-            var isCustomLocale = false
-            val currentLocale =
-                try {
-                    val appLocales = getApplicationLocales(currentAppPackage)
-                    if (!appLocales.isEmpty) {
-                        isCustomLocale = true
-                        appLocales[0].capDisplayName()
-                    } else {
-                        ""
-                    }
-                } catch (e: Exception) {
-                    ""
-                }.ifBlank { getString(R.string.system_default) }
+            // Unknown Binder state is unavailable, not a successful system-default read.
+            // Let UserServiceProvider invoke onFail rather than fabricating an empty list.
+            val appLocales = getApplicationLocales(currentAppPackage)
+            val isCustomLocale = !appLocales.isEmpty
+            val currentLocale = if (isCustomLocale) {
+                appLocales[0].capDisplayName()
+            } else {
+                getString(R.string.system_default)
+            }
             qsTile.state = Tile.STATE_INACTIVE
             qsTile.updateTile()
 
@@ -161,7 +157,7 @@ class QSTile : TileService() {
         if (!this::targetPackage.isInitialized)
             return
 
-        UserServiceProvider.run {
+        UserServiceProvider.run(onFail = { setDisabledTile() }) {
             val currentLocale = getApplicationLocales(targetPackage.packageName)
             try {
                 Log.d(BuildConfig.APPLICATION_ID, "QSTile: ${currentLocale.isEmpty}")

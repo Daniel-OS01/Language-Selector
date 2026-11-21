@@ -63,6 +63,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          packages: platform-tools
 
       - name: Install actionlint
         env:
@@ -82,6 +84,7 @@ jobs:
           actionlint
           shellcheck scripts/ci/check_release_signing.sh
           shellcheck scripts/ci/resolve_next_version.sh
+          shellcheck scripts/ci/prepare_release.sh
 
       - name: Read and install configured Android platform and build tools
         id: android_versions

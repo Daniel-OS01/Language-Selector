@@ -99,8 +99,12 @@ class SettingsVm @Inject constructor(
             requireServiceConnected()
             val preset = LocaleBackupCodec.loadPresets(sp).firstOrNull { it.id == presetId }
                 ?: error("Preset not found")
-            localeSnapshot.applySnapshot(preset.apps)
-            refreshBus.requestRefresh()
+            try {
+                localeSnapshot.applySnapshot(preset.apps)
+            } finally {
+                // A failed operation may still have changed some packages.
+                refreshBus.requestRefresh()
+            }
             withContext(Dispatchers.Main) {
                 _uiState.update {
                     it.copy(message = "Applied \"${preset.name}\"")
@@ -146,10 +150,13 @@ class SettingsVm @Inject constructor(
                 stream.readBytes().toString(Charsets.UTF_8)
             } ?: error("Could not read import file")
             val backup = LocaleBackupCodec.decodeBackup(json)
-            localeSnapshot.applySnapshot(backup.apps)
+            try {
+                localeSnapshot.applySnapshot(backup.apps)
+            } finally {
+                refreshBus.requestRefresh()
+            }
             LocaleBackupCodec.savePinnedLocales(sp, backup.pinnedLocales)
             LocaleBackupCodec.savePresets(sp, backup.presets.take(LocaleBackupLimits.MAX_PRESETS))
-            refreshBus.requestRefresh()
             withContext(Dispatchers.Main) {
                 _uiState.update {
                     it.copy(

@@ -1,14 +1,16 @@
-# Language Selector Plus
+# 🌐 Language Selector Neo
 
 [![Validate Android Build](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml/badge.svg)](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/release-build.yml) [![Publish APK](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/publish-apk.yml/badge.svg)](https://github.com/Daniel-OS01/Language-Selector/actions/workflows/publish-apk.yml) ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Daniel-OS01/Language-Selector?utm_source=oss&utm_medium=github&utm_campaign=Daniel-OS01%2FLanguage-Selector&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
-**Per-app languages for Android 13+**, when the system Settings UI does not expose them. 
-Fork with working pins, presets, backup, and stability fixes.
+**Per-app languages for Android 13+**, when the system Settings UI does not expose them.
+Fork with working pins, presets, backup, floating search, Traditional Chinese support, and stability fixes.
+
+> All code changes in the Neo fork were vibe-coded with Codex.
 ## 🖼️ Screenshots
 
 <div>
-  <img src="https://raw.githubusercontent.com/VegaBobo/Language-Selector/main/other/preview_1.jpg" alt="Application list" width="200" />
-  <img src="https://raw.githubusercontent.com/VegaBobo/Language-Selector/main/other/preview_2.jpg" alt="Language selection" width="200" />
+  <img src="src/preview_1.jpg" alt="Application list" width="200" />
+  <img src="src/preview_2.jpg" alt="Language selection" width="200" />
 </div>
 
 ---
@@ -21,8 +23,9 @@ Fork with working pins, presets, backup, and stability fixes.
 | 📌 Pins & favorites  | Long-press a language to pin it; pins stay at the top of the list and feed the Quick Settings tile |
 | 💾 Presets           | Save / apply / delete named snapshots of all currently modified apps (up to 10)                    |
 | 📤 Export & import   | JSON backup of modified apps, pins, and presets via the system document picker                     |
-| 🔎 Search & filters  | Faster loading, Enter-to-search, history, system / modified filters, clearer empty states          |
+| 🔎 Search & filters  | Basic app list shown before background locale scanning; floating bottom search follows the keyboard, filters in place, and submits on Enter; history and system / modified filters          |
 | 🏷️ Labels & sorting | `System` / `User` / `Modified` labels; modified apps rise to the top with snackbar navigation      |
+| 🌏 Localization      | Traditional Chinese support alongside existing translations                                      |
 | 🐛 Stability         | Startup shell crash fixed; pinning from All languages works; list refresh no longer races          |
 | 🚀 Releases          | Signed SemVer tags (`vX.Y.Z`), not opaque `sha-*` titles; CI-tested and lint-clean                 |
 
@@ -133,7 +136,8 @@ Built from `Locale.getAvailableLocales()` — many entries may not be supported 
 
 | Trigger                         | Bump                   | Tag example         |
 | ------------------------------- | ---------------------- | ------------------- |
-| Push to `main` (app / CI paths) | Minor                  | `v2.1.0` → `v2.2.0` |
+| Push to `main` (app / CI paths) | Patch                  | `v2.1.0` → `v2.1.1` |
+| Weekly Dependabot scan         | Patch, if updates landed since the last published SemVer release | `v2.1.0` → `v2.1.1` |
 | Manual Publish (`bump=minor`)   | Minor                  | next `vX.(Y+1).0`   |
 | Manual Publish (`bump=major`)   | Major (only this path) | next `v(X+1).0.0`   |
 
@@ -142,7 +146,7 @@ Built from `Locale.getAvailableLocales()` — many entries may not be supported 
 - Same commit rerun reuses an existing SemVer tag (no double-bump).
 - `versionCode = major×1_000_000 + minor×1_000 + patch`
 - Local default: `versionName` `2.0.0`, `versionCode` `5` without CI env vars.
-- First SemVer publish with no `v*` tags yet: `v2.1.0` (fallback last version `2.0.0` + minor).
+- First automatic SemVer publish with no `v*` tags yet: `v2.0.1` (fallback last version `2.0.0` + patch); manual minor produces `v2.1.0`.
 
 ---
 
@@ -188,7 +192,7 @@ python3 scripts/ci/verify_shizuku_artifacts.py
 | Workflow                                         | Role                                                                                                                                    |
 | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | **Validate Android Build** (`release-build.yml`) | PR / `main`+`work` path pushes: unit tests, lint, actionlint, Shizuku check, unsigned `assembleRelease`. No secrets, no GitHub Release. |
-| **Publish APK** (`publish-apk.yml`)              | Path-filtered `main` push (minor) or manual dispatch (minor/major): signed APK, SemVer tag, draft-then-publish.                         |
+| **Publish APK** (`publish-apk.yml`)              | Path-filtered `main` push or weekly Dependabot scan (patch), or manual dispatch (minor/major): tests, lint, signed APK, SemVer tag, draft-then-publish. |
 
 
 
@@ -226,7 +230,7 @@ Android 13 added per-app language preferences, but some OEMs hide them in Settin
 
 ## 🤝 Contributing
 
-Project documentation (changelog, troubleshooting, and reusable Android playbooks) lives in `[docs/](docs/README.md)`.
+Project documentation (changelog, troubleshooting, and reusable Android playbooks) lives in [docs/](docs/README.md).
 
 Run unit tests, Android lint, release assembly, and relevant `scripts/ci` checks before opening a PR.
 

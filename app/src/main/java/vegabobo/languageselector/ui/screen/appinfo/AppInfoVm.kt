@@ -63,8 +63,13 @@ class AppInfoVm @Inject constructor(
     fun updateCurrentLanguageState() {
         UserServiceProvider.run {
             val currentLocale = getApplicationLocales(appInfo.packageName)
-            if (!currentLocale.isEmpty)
-                _uiState.update { it.copy(currentLanguage = currentLocale.get(0).capDisplayName()) }
+            _uiState.update {
+                it.copy(currentLanguage = if (currentLocale.isEmpty) {
+                    ""
+                } else {
+                    currentLocale.get(0).capDisplayName()
+                })
+            }
         }
     }
 

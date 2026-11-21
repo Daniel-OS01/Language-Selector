@@ -16,7 +16,7 @@ Historical `sha-*` releases **remain** on GitHub. They are **ignored** when comp
 ## Bootstrap rules (Neo)
 
 1. If **no** `v*` tags exist, treat last released as **`2.0.0`** (matches prior About default).
-2. First SemVer publish → **`v2.1.0`** (minor bump).
+2. First automatic SemVer publish → **`v2.0.1`** (patch bump); a manual minor publish produces **`v2.1.0`**.
 3. Optional (not required): create an annotated `v2.0.0` on an older commit for clarity — resolver does not need it.
 
 ## Certificate / install migration

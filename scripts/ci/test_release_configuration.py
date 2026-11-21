@@ -31,6 +31,26 @@ class ReleaseConfigurationTest(unittest.TestCase):
     def publish_workflow_text(self) -> str:
         return PUBLISH_WORKFLOW.read_text(encoding="utf-8")
 
+    def test_application_id_preserves_installed_app_data(self) -> None:
+        app_build = (REPOSITORY_ROOT / "app" / "build.gradle.kts").read_text(
+            encoding="utf-8"
+        )
+        self.assertEqual(
+            ["vegabobo.languageselector"],
+            re.findall(r'applicationId\s*=\s*"([^"]+)"', app_build),
+        )
+
+    def test_android_setup_avoids_removed_legacy_tools_package(self) -> None:
+        for workflow in (VALIDATE_WORKFLOW, PUBLISH_WORKFLOW):
+            text = workflow.read_text(encoding="utf-8")
+            steps = re.findall(
+                r"uses: android-actions/setup-android@[^\n]+\n(.*?)(?=\n      -|\Z)",
+                text, re.DOTALL,
+            )
+            self.assertTrue(steps)
+            for step in steps:
+                self.assertRegex(step, r"packages: platform-tools\s*(?:\n|$)")
+
     def test_compile_sdk_has_one_value_used_by_modules_and_ci(self) -> None:
         properties = (REPOSITORY_ROOT / "gradle.properties").read_text(encoding="utf-8")
         matches = re.findall(r"^android\.compileSdk=(.+)$", properties, flags=re.MULTILINE)
@@ -115,14 +135,15 @@ class ReleaseConfigurationTest(unittest.TestCase):
         self.assertIn("branches: [main]", workflow)
         self.assertIn("scripts/ci/**", workflow)
         self.assertNotIn("\n  pull_request:", workflow)
-        self.assertIn("bash scripts/ci/resolve_next_version.sh", workflow)
+        self.assertIn("bash scripts/ci/prepare_release.sh", workflow)
         self.assertIn("CI_VERSION_NAME=", workflow)
         self.assertIn("fetch-depth: 0", workflow)
         self.assertIn("bump:", workflow)
         self.assertIn("- major", workflow)
         self.assertIn("assembleRelease", workflow)
-        self.assertNotIn("testDebugUnitTest", workflow)
-        self.assertNotIn("lintRelease", workflow)
+        self.assertIn("testDebugUnitTest lintRelease assembleRelease", workflow)
+        prepare = workflow.split("  prepare:\n", 1)[1].split("  build:\n", 1)[0]
+        self.assertIn("timeout-minutes: 10", prepare)
         self.assertNotIn("actionlint", workflow)
         self.assertNotIn("verify_shizuku_artifacts.py", workflow)
         self.assertIn("PUBLISH_REQUESTED:", workflow)
@@ -157,8 +178,8 @@ class ReleaseConfigurationTest(unittest.TestCase):
         self.assertIn("?: return 5", app_build)
         self.assertIn("versionCode = resolveVersionCode()", app_build)
         self.assertIn("CI_VERSION_CODE: ${{ github.run_number }}", validate)
-        self.assertIn("CI_VERSION_NAME=${{ steps.resolve_version.outputs.version_name }}", publish)
-        self.assertIn("CI_VERSION_CODE=${{ steps.resolve_version.outputs.version_code }}", publish)
+        self.assertIn("CI_VERSION_NAME=${{ needs.prepare.outputs.version_name }}", publish)
+        self.assertIn("CI_VERSION_CODE=${{ needs.prepare.outputs.version_code }}", publish)
 
     def parse_resolver_output(self, text: str) -> dict[str, str]:
         values: dict[str, str] = {}
@@ -272,6 +293,32 @@ class ReleaseConfigurationTest(unittest.TestCase):
         major = self.run_version_resolver(repo=repo, sha=next_sha, bump="major")
         self.assertEqual("3.0.0", major["version_name"])
         self.assertEqual("3000000", major["version_code"])
+
+    def test_resolve_next_version_patch_from_fallback(self) -> None:
+        repo, sha = self.init_git_repo()
+        values = self.run_version_resolver(repo=repo, sha=sha, bump="patch", fallback="2.3.4")
+        self.assertEqual("2.3.5", values["version_name"])
+        self.assertEqual("2003005", values["version_code"])
+        self.assertEqual("false", values["reused"])
+
+    def test_resolve_next_version_patch_from_latest_tag(self) -> None:
+        repo, _ = self.init_git_repo()
+        subprocess.run(["git", "tag", "v2.3.4"], check=True, cwd=repo, capture_output=True)
+        subprocess.run(["git", "commit", "--allow-empty", "-m", "next"], check=True,
+                       cwd=repo, capture_output=True)
+        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+        values = self.run_version_resolver(repo=repo, sha=sha, bump="patch")
+        self.assertEqual("2.3.5", values["version_name"])
+        self.assertEqual("2003005", values["version_code"])
+        self.assertEqual("false", values["reused"])
+
+    def test_resolve_next_version_patch_reuses_existing_sha(self) -> None:
+        repo, sha = self.init_git_repo()
+        subprocess.run(["git", "tag", "v2.3.4"], check=True, cwd=repo, capture_output=True)
+        values = self.run_version_resolver(repo=repo, sha=sha, bump="patch")
+        self.assertEqual("2.3.4", values["version_name"])
+        self.assertEqual("2003004", values["version_code"])
+        self.assertEqual("true", values["reused"])
 
     def test_resolve_next_version_rejects_component_overflow(self) -> None:
         repo, _ = self.init_git_repo()
@@ -517,13 +564,16 @@ class ReleaseConfigurationTest(unittest.TestCase):
         self.assertEqual("should_publish=true\n", output)
         self.assertEqual("", summary)
 
-    def test_dependabot_loop_reads_urls_without_backslash_processing(self) -> None:
+    def test_dependabot_direct_merge_keeps_identity_and_head_guards(self) -> None:
         workflow = (
             REPOSITORY_ROOT / ".github" / "workflows" / "dependabot-auto-merge.yml"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("while IFS= read -r pr; do", workflow)
-        self.assertNotRegex(workflow, r"while\s+read\s+pr;")
+        self.assertIn('user.login == "dependabot[bot]"', workflow)
+        self.assertIn('.base.ref == "main"', workflow)
+        self.assertIn('.draft == false', workflow)
+        self.assertIn('-f sha="$sha"', workflow)
+        self.assertNotIn("--auto", workflow)
 
 
 if __name__ == "__main__":

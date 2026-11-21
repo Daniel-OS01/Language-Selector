@@ -14,6 +14,9 @@ on:
       - 'gradlew'
       - 'gradlew.bat'
       - 'scripts/ci/**'
+  schedule:
+    # Monday 06:15 Hong Kong time, after both Dependabot schedules.
+    - cron: '15 22 * * 0'
   workflow_dispatch:
     inputs:
       publish:
@@ -22,7 +25,7 @@ on:
         default: true
         type: boolean
       bump:
-        description: Version bump (major only via manual dispatch; pushes always minor)
+        description: Version bump (major only via manual dispatch; automatic runs always patch)
         required: true
         default: minor
         type: choice
@@ -38,21 +41,51 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    name: Build signed release APK
+  prepare:
+    name: Synchronize main and resolve release version
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      PUBLISH_REQUESTED: ${{ github.event_name == 'push' || inputs.publish }}
-      PUBLISH_EXPLICIT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
-      VERSION_BUMP: ${{ github.event_name == 'push' && 'minor' || inputs.bump || 'minor' }}
+    timeout-minutes: 10
     outputs:
+      target_sha: ${{ steps.resolve_version.outputs.target_sha }}
+      should_build: ${{ steps.resolve_version.outputs.should_build }}
       short_sha: ${{ steps.resolve_version.outputs.short_sha }}
       tag: ${{ steps.resolve_version.outputs.tag }}
       version_name: ${{ steps.resolve_version.outputs.version_name }}
       version_code: ${{ steps.resolve_version.outputs.version_code }}
       release_title: ${{ steps.resolve_version.outputs.release_title }}
       bump: ${{ steps.resolve_version.outputs.bump }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+      - name: Resolve next SemVer
+        id: resolve_version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUMP: ${{ github.event_name != 'workflow_dispatch' && 'patch' || inputs.bump || 'minor' }}
+          FALLBACK_VERSION: '2.0.0'
+        run: |
+          bash scripts/ci/prepare_release.sh
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.should_build == 'true'
+    name: Build signed release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PUBLISH_REQUESTED: ${{ github.event_name != 'workflow_dispatch' || inputs.publish }}
+      PUBLISH_EXPLICIT: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+      VERSION_BUMP: ${{ github.event_name != 'workflow_dispatch' && 'patch' || inputs.bump || 'minor' }}
+    outputs:
+      target_sha: ${{ needs.prepare.outputs.target_sha }}
+      short_sha: ${{ needs.prepare.outputs.short_sha }}
+      tag: ${{ needs.prepare.outputs.tag }}
+      version_name: ${{ needs.prepare.outputs.version_name }}
+      version_code: ${{ needs.prepare.outputs.version_code }}
+      release_title: ${{ needs.prepare.outputs.release_title }}
+      bump: ${{ needs.prepare.outputs.bump }}
       apk_name: ${{ steps.validate_apk.outputs.apk_name }}
       should_publish: ${{ steps.signing.outputs.should_publish }}
       build_tools: ${{ steps.android_versions.outputs.build_tools }}
@@ -61,24 +94,14 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
+          ref: ${{ needs.prepare.outputs.target_sha }}
           fetch-depth: 0
-
-      - name: Resolve next SemVer
-        id: resolve_version
-        env:
-          BUMP: ${{ env.VERSION_BUMP }}
-          GITHUB_SHA: ${{ github.sha }}
-          FALLBACK_VERSION: '2.0.0'
-        run: |
-          git fetch --tags --force
-          bash scripts/ci/resolve_next_version.sh
-          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
 
       - name: Export SemVer build env
         run: |
           {
-            echo "CI_VERSION_NAME=${{ steps.resolve_version.outputs.version_name }}"
-            echo "CI_VERSION_CODE=${{ steps.resolve_version.outputs.version_code }}"
+            echo "CI_VERSION_NAME=${{ needs.prepare.outputs.version_name }}"
+            echo "CI_VERSION_CODE=${{ needs.prepare.outputs.version_code }}"
           } >> "$GITHUB_ENV"
 
       - name: Set up Java
@@ -92,6 +115,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          packages: platform-tools
 
       - name: Read and install configured Android platform and build tools
         id: android_versions
@@ -161,15 +186,15 @@ jobs:
             echo "RELEASE_SIGNING_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
           } >> "$GITHUB_ENV"
 
-      - name: Assemble release APK
-        run: ./gradlew --no-daemon --stacktrace assembleRelease
+      - name: Test, lint, and assemble release APK
+        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest lintRelease assembleRelease
 
       - name: Validate release APK
         id: validate_apk
         env:
           SHOULD_PUBLISH: ${{ steps.signing.outputs.should_publish == 'true' }}
-          VERSION_NAME: ${{ steps.resolve_version.outputs.version_name }}
-          SHORT_SHA: ${{ steps.resolve_version.outputs.short_sha }}
+          VERSION_NAME: ${{ needs.prepare.outputs.version_name }}
+          SHORT_SHA: ${{ needs.prepare.outputs.short_sha }}
         run: |
           mapfile -t apks < <(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print)
           if (( ${#apks[@]} != 1 )); then
@@ -240,6 +265,8 @@ jobs:
 
       - name: Set up Android SDK for APK verification
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          packages: platform-tools
 
       - name: Verify downloaded APK signature
         run: |
@@ -256,11 +283,11 @@ jobs:
 
       - name: Publish idempotent SemVer release
         env:
-          TARGET_SHA: ${{ github.sha }}
+          TARGET_SHA: ${{ needs.build.outputs.target_sha }}
           RELEASE_NOTES: |
             Language Selector Neo ${{ needs.build.outputs.release_title }} (`versionCode` ${{ needs.build.outputs.version_code }}).
 
-            - Commit: ${{ github.sha }}
+            - Commit: ${{ needs.build.outputs.target_sha }}
             - Bump: ${{ needs.build.outputs.bump }}
 
             One-time migration: earlier releases `sha-0832269` and `sha-95bc301` used different Android Debug certificates. Uninstall those builds before installing this stable-signed APK; in-place updates from those historical APKs are not possible.
@@ -268,7 +295,15 @@ jobs:
           apk="dist/$APK_NAME"
           title="$RELEASE_TITLE"
 
-          if release_json=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets 2>/dev/null); then
+          # An existing lightweight or annotated tag must identify the built commit.
+          # API failures are fatal; an empty matching-ref list alone means no tag.
+          refs=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$RELEASE_TAG")
+          if jq -e --arg ref "refs/tags/$RELEASE_TAG" 'any(.[]; .ref == $ref)' <<< "$refs" >/dev/null; then
+            tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq '.sha')
+            [[ "$tag_sha" == "$TARGET_SHA" ]] || { echo "Release tag does not match build commit; refusing publication." >&2; exit 1; }
+          fi
+
+          if release_json=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets,targetCommitish 2>/dev/null); then
             is_draft=$(jq -r '.isDraft' <<< "$release_json")
             if [[ "$is_draft" == 'false' ]]; then
               if jq -e --arg name "$APK_NAME" '.assets[] | select(.name == $name)' <<< "$release_json" >/dev/null; then
@@ -276,6 +311,11 @@ jobs:
                 exit 0
               fi
               echo "Published release $RELEASE_TAG exists without $APK_NAME; refusing to mutate it." >&2
+              exit 1
+            fi
+            if ! jq -e --arg sha "$TARGET_SHA" --arg name "$APK_NAME" \
+              '.targetCommitish == $sha and all(.assets[]; .name == $name)' <<< "$release_json" >/dev/null; then
+              echo "Stale draft target or unexpected assets; refusing to upload or publish. Repair the draft explicitly." >&2
               exit 1
             fi
             gh release upload "$RELEASE_TAG" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
@@ -287,6 +327,12 @@ jobs:
               --notes "$RELEASE_NOTES" \
               --draft
           fi
+
+          # Read back the exact draft after upload; never freeze mixed artifacts.
+          release_json=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets,targetCommitish)
+          jq -e --arg sha "$TARGET_SHA" --arg name "$APK_NAME" \
+            '.isDraft == true and .targetCommitish == $sha and ([.assets[].name] == [$name])' \
+            <<< "$release_json" >/dev/null || { echo "Draft verification failed; refusing publication." >&2; exit 1; }
 
           gh release edit "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \

@@ -23,10 +23,10 @@ Operator checklist for **Language Selector Neo**. Portable ideas: [../playbooks/
 3. Set each secret with `gh secret set NAME` via **stdin** (avoid shell history).
 4. Confirm secrets list: `gh secret list`
 
-## Publish: automatic minor (path-filtered push)
+## Publish: automatic patch (path-filtered push or weekly Dependabot scan)
 
 1. Merge/push changes under watched paths (`app/**`, Gradle, workflows, `scripts/ci/**`, …).
-2. Workflow **Publish APK** runs with **minor** bump.
+2. Workflow **Publish APK** runs with a **patch** bump. Its weekly scan also builds when Dependabot updates landed since the last published SemVer release.
 3. If secrets missing → build may succeed but **publication soft-skips** (check job summary).
 4. If secrets present → GitHub Release `vX.Y.Z` marked latest.
 
@@ -68,4 +68,4 @@ Compare certificate SHA-256 to your recorded production fingerprint.
 | Missing secrets (manual) | Add secrets; re-run |
 | Restricted to main | Switch ref to `main` |
 | SemVer component out of range | See playbook 02; major bump if minors exhausted |
-| lintRelease / tests failed | Fix on a validate workflow first; publish is a fast path without re-lint |
+| lintRelease / tests failed | Fix and rerun; both validation and publication builds run tests and lint before assembly |

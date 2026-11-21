@@ -62,9 +62,11 @@ class UserService : IUserService.Stub() {
                 LOCALE_MANAGER!!.setApplicationLocales(packageName, currentUser, locales)
             } catch (e2: Exception) {
                 Log.e(BuildConfig.APPLICATION_ID, "setApplicationLocales fallback also failed: ${e2.message}")
+                throw IllegalStateException("Could not set application locales", e2)
             }
         } catch (e: Exception) {
             Log.e(BuildConfig.APPLICATION_ID, "setApplicationLocales failed: ${e.message}")
+            throw IllegalStateException("Could not set application locales", e)
         }
     }
 
@@ -75,7 +77,8 @@ class UserService : IUserService.Stub() {
             LOCALE_MANAGER!!.getApplicationLocales(packageName, currentUser)
         } catch (e: Exception) {
             Log.w(BuildConfig.APPLICATION_ID, "getApplicationLocales failed for $packageName: ${e.message}")
-            LocaleList.getEmptyLocaleList()
+            // Preserve failure across Binder instead of reporting a successful reset.
+            throw IllegalStateException("Could not read application locales", e)
         }
     }
 

@@ -1,5 +1,7 @@
 package vegabobo.languageselector.ui.components
 
+import android.graphics.Bitmap
+import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,17 +15,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import vegabobo.languageselector.R
 import vegabobo.languageselector.ui.screen.main.AppInfo
 
@@ -46,12 +54,7 @@ fun AppListItem(
             .then(modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val iconBitmap = remember(app.pkg) { app.icon.toBitmap().asImageBitmap() }
-        Image(
-            modifier = Modifier.size(32.dp),
-            bitmap = iconBitmap,
-            contentDescription = "app icon"
-        )
+        AppIcon(app = app)
         Spacer(modifier = Modifier.padding(8.dp))
         Column(
             modifier = Modifier.weight(1f),
@@ -113,3 +116,54 @@ fun TextLabel(
         }
     }
 }
+
+@Composable
+private fun AppIcon(app: AppInfo) {
+    val context = LocalContext.current
+    val cacheKey = "${app.pkg}:${app.iconVersion}"
+    val bitmap by produceState(
+        initialValue = AppIconMemoryCache.get(cacheKey),
+        key1 = cacheKey,
+    ) {
+        // produceState retains its value when keys change; never show an old
+        // package/version bitmap or skip the new icon load after an app update.
+        value = AppIconMemoryCache.get(cacheKey)
+        if (value == null) {
+            value = withContext(Dispatchers.IO) {
+                AppIconMemoryCache.get(cacheKey) ?: runCatching {
+                    val applicationInfo = context.packageManager.getApplicationInfo(app.pkg, 0)
+                    context.packageManager.getApplicationIcon(applicationInfo).toBitmap(
+                        width = APP_ICON_BITMAP_SIZE,
+                        height = APP_ICON_BITMAP_SIZE,
+                    )
+                }.getOrNull()?.also { AppIconMemoryCache.put(cacheKey, it) }
+            }
+        }
+    }
+
+    val loadedBitmap = bitmap
+    if (loadedBitmap == null) {
+        Image(
+            modifier = Modifier.size(32.dp),
+            painter = painterResource(R.drawable.icon_placeholder),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+        )
+    } else {
+        Image(
+            modifier = Modifier.size(32.dp),
+            bitmap = loadedBitmap.asImageBitmap(),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+        )
+    }
+}
+
+private object AppIconMemoryCache : LruCache<String, Bitmap>(APP_ICON_CACHE_SIZE_KB) {
+    override fun sizeOf(key: String, value: Bitmap): Int {
+        return value.allocationByteCount / 1024
+    }
+}
+
+private const val APP_ICON_BITMAP_SIZE = 96
+private const val APP_ICON_CACHE_SIZE_KB = 8 * 1024

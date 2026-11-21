@@ -4,17 +4,17 @@
 
 - `versionName` stuck (e.g. always `2.0.0`) while Releases are named by commit SHA
 - `versionCode` from `run_number` unrelated to user-visible version
-- Need **minor** bumps on every ship, **major** only when a human chooses
+- Need automatic **patch** bumps, with **minor/major** only when a human chooses
 
 ## Recommended architecture
 
 ```mermaid
 flowchart TD
-  trigger[push_or_manual_dispatch]
+  trigger[push_weekly_or_manual_dispatch]
   resolve[resolve_next_version_sh]
   decide{SHA_already_has_v_tag?}
   reuse[reuse_tag]
-  bump{bump_minor_or_major}
+  bump{bump_patch_minor_or_major}
   env[CI_VERSION_NAME_and_CODE]
   assemble[assembleRelease]
   tag[gh_release_vX_Y_Z]
@@ -37,7 +37,7 @@ Each component must be **canonical** `0…999`: either `0` or `[1-9]` plus at mo
 - Only tags matching canonical components count, e.g. `^v(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$`
 - Oversized tags such as `v1000.0.0` and non-canonical tags such as `v0000.0.0` are **skipped** when selecting latest / SHA tags
 - Ignore `sha-*`, `latest`, etc.
-- Fallback “last released” when no valid `v*` tags: e.g. `2.0.0` → next minor `2.1.0`
+- Fallback “last released” when no valid `v*` tags: `2.0.0` → automatic patch `2.0.1`, or manual minor `2.1.0`
 - Same commit re-run: reuse existing valid `v*` tag on that SHA (idempotent)
 
 ## Concrete checklist
@@ -46,7 +46,7 @@ Each component must be **canonical** `0…999`: either `0` or `[1-9]` plus at mo
 - [ ] `versionCode` from env (or encoded SemVer) with range checks
 - [ ] Resolver script writes GitHub Actions outputs: `version_name`, `version_code`, `tag`, `reused`
 - [ ] Checkout with tags (`fetch-depth: 0` + `git fetch --tags`)
-- [ ] Push → force minor; workflow_dispatch → choice `minor` \| `major`
+- [ ] Push / weekly Dependabot update scan → force patch; workflow_dispatch → choice `minor` \| `major`
 - [ ] Release title/tag = `vX.Y.Z`; APK name includes version + short SHA
 
 ## Pitfalls we hit + fixes (Neo)

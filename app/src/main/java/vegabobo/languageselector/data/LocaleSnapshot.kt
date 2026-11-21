@@ -26,20 +26,20 @@ class LocaleSnapshot @Inject constructor(
         service: IUserService,
         packages: List<ApplicationInfo>,
     ): List<AppLocaleEntry> {
-        val out = ArrayList<AppLocaleEntry>()
-        for (pkg in packages) {
+        return collectLocaleSnapshot(packages.map { it.packageName }) { pkg ->
             val locales = try {
-                service.getApplicationLocales(pkg.packageName)
+                service.getApplicationLocales(pkg)
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 null
-            } ?: continue
-            if (locales.isEmpty) continue
-            val tag = locales[0].toLanguageTag()
-            if (tag.isNotBlank()) {
-                out.add(AppLocaleEntry(pkg.packageName, tag))
+            }
+            when {
+                locales == null -> null
+                locales.isEmpty -> ""
+                else -> locales[0].toLanguageTag()
             }
         }
-        return out.sortedBy { it.packageName }
     }
 
     suspend fun applySnapshot(apps: List<AppLocaleEntry>) {
@@ -61,6 +61,7 @@ class LocaleSnapshot @Inject constructor(
         val currentlyModified = collectModifiedApps(service, packages)
             .map { it.packageName }
 
+        var failureCount = 0
         for (entry in desired.values) {
             val localeList = LocaleList(Locale.forLanguageTag(entry.languageTag))
             try {
@@ -68,7 +69,7 @@ class LocaleSnapshot @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                // Continue applying remaining packages.
+                failureCount++
             }
         }
 
@@ -78,9 +79,10 @@ class LocaleSnapshot @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                // Continue clearing remaining packages.
+                failureCount++
             }
         }
+        check(failureCount == 0) { "Could not apply language settings for $failureCount apps" }
     }
 
     fun getInstalledPackages(): List<ApplicationInfo> {

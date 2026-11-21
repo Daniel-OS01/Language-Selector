@@ -4,8 +4,13 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
@@ -79,7 +84,10 @@ fun MainScreen(
             mainScreenVm.resetSnackBarDisplay()
         }
     }
-    BaseScreen(snackBarHost = sb) {
+    BaseScreen(
+        snackBarHost = sb,
+        snackBarHostModifier = Modifier.padding(bottom = 96.dp),
+    ) {
         if (uiState.isLoading)
             Box(modifier = Modifier.fillMaxSize()) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -89,39 +97,19 @@ fun MainScreen(
                 Modifier
                     .fillMaxSize()
                     .semantics { isTraversalGroup = true }) {
-                AppSearchBar(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .semantics { traversalIndex = 0f },
-                    placeholder = stringResource(R.string.search),
-                    onUpdatedValue = { mainScreenVm.onSearchTextFieldChange(it) },
-                    onSearch = { mainScreenVm.onSearchConfirmed(it) },
-                    query = uiState.searchTextFieldValue,
-                    onClickApp = { mainScreenVm.onClickApp(it); navigateToAppScreen(it.pkg) },
-                    history = uiState.history,
-                    apps = uiState.searchResults,
-                    isExpanded = uiState.isExpanded,
-                    onExpandedChange = { mainScreenVm.onSearchExpandedChange() },
-                    selectedLabels = uiState.selectLabels,
-                    onSelectedLabelsChange = { mainScreenVm.onSelectedLabelChange(it) },
-                    onClickClear = { mainScreenVm.onClickClear() },
-                    actions = {
-                        if (!uiState.isExpanded)
-                            SearchBarActions(
-                                isDropdownVisible = uiState.isDropdownVisible,
-                                isShowingSystemApps = uiState.isShowSystemAppsHome,
-                                onClickToggleDropdown = { mainScreenVm.toggleDropdown() },
-                                onToggleDropdown = { mainScreenVm.toggleDropdown() },
-                                onClickToggleSystemApps = { mainScreenVm.toggleSystemAppsVisibility() },
-                                onClickSettings = { navigateToSettings() },
-                                onClickAbout = { navigateToAbout() }
-                            )
-                    })
-
                 if (uiState.operationMode == OperationMode.NONE) {
                     ShizukuRequiredWarning { mainScreenVm.onClickProceedShizuku() }
                 }
 
+                val displayedApps = if (uiState.isExpanded) {
+                    uiState.searchResults
+                } else {
+                    uiState.listOfApps
+                }
+                val visibleApps = displayedApps.filter { app ->
+                    uiState.isExpanded || uiState.isShowSystemAppsHome ||
+                            !app.isSystemApp() || app.isModified()
+                }
                 LazyColumn(
                     state = lazyListState,
                     modifier = Modifier.semantics { traversalIndex = 1f }
@@ -130,16 +118,10 @@ fun MainScreen(
                         Spacer(
                             Modifier
                                 .statusBarsPadding()
-                                .padding(top = 72.dp) /* 64 + 10 */
+                                .padding(top = 8.dp)
                         )
                     }
-                    val visibleApps = uiState.listOfApps.filter { app ->
-                        uiState.isShowSystemAppsHome || !app.isSystemApp() || app.isModified()
-                    }
-                    items(
-                        count = visibleApps.size,
-                        key = { visibleApps[it].pkg }
-                    ) { index ->
+                    items(count = visibleApps.size, key = { visibleApps[it].pkg }) { index ->
                         val thisApp = visibleApps[index]
                         AppListItem(
                             modifier = Modifier.padding(
@@ -155,7 +137,50 @@ fun MainScreen(
                             }
                         )
                     }
+                    item {
+                        Spacer(
+                            Modifier
+                                .height(88.dp)
+                                .navigationBarsPadding()
+                        )
+                    }
                 }
+
+                AppSearchBar(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 32.dp)
+                        .widthIn(max = 720.dp)
+                        .fillMaxWidth()
+                        .semantics { traversalIndex = 0f },
+                    placeholder = stringResource(R.string.search),
+                    onUpdatedValue = { mainScreenVm.onSearchTextFieldChange(it) },
+                    onSearch = { mainScreenVm.onSearchConfirmed(it) },
+                    query = uiState.searchTextFieldValue,
+                    isExpanded = uiState.isExpanded,
+                    onExpandedChange = { expanded ->
+                        if (expanded != uiState.isExpanded) {
+                            mainScreenVm.onSearchExpandedChange()
+                        }
+                    },
+                    selectedLabels = uiState.selectLabels,
+                    onSelectedLabelsChange = { mainScreenVm.onSelectedLabelChange(it) },
+                    actions = {
+                        if (!uiState.isExpanded) {
+                            SearchBarActions(
+                                isDropdownVisible = uiState.isDropdownVisible,
+                                isShowingSystemApps = uiState.isShowSystemAppsHome,
+                                onClickToggleDropdown = { mainScreenVm.toggleDropdown() },
+                                onToggleDropdown = { mainScreenVm.toggleDropdown() },
+                                onClickToggleSystemApps = { mainScreenVm.toggleSystemAppsVisibility() },
+                                onClickSettings = { navigateToSettings() },
+                                onClickAbout = { navigateToAbout() }
+                            )
+                        }
+                    }
+                )
             }
         }
     }

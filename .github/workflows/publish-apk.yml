@@ -291,7 +291,15 @@ jobs:
           apk="dist/$APK_NAME"
           title="$RELEASE_TITLE"
 
-          if release_json=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets 2>/dev/null); then
+          # An existing lightweight or annotated tag must identify the built commit.
+          # API failures are fatal; an empty matching-ref list alone means no tag.
+          refs=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$RELEASE_TAG")
+          if jq -e --arg ref "refs/tags/$RELEASE_TAG" 'any(.[]; .ref == $ref)' <<< "$refs" >/dev/null; then
+            tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq '.sha')
+            [[ "$tag_sha" == "$TARGET_SHA" ]] || { echo "Release tag does not match build commit; refusing publication." >&2; exit 1; }
+          fi
+
+          if release_json=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets,targetCommitish 2>/dev/null); then
             is_draft=$(jq -r '.isDraft' <<< "$release_json")
             if [[ "$is_draft" == 'false' ]]; then
               if jq -e --arg name "$APK_NAME" '.assets[] | select(.name == $name)' <<< "$release_json" >/dev/null; then
@@ -299,6 +307,11 @@ jobs:
                 exit 0
               fi
               echo "Published release $RELEASE_TAG exists without $APK_NAME; refusing to mutate it." >&2
+              exit 1
+            fi
+            if ! jq -e --arg sha "$TARGET_SHA" --arg name "$APK_NAME" \
+              '.targetCommitish == $sha and all(.assets[]; .name == $name)' <<< "$release_json" >/dev/null; then
+              echo "Stale draft target or unexpected assets; refusing to upload or publish. Repair the draft explicitly." >&2
               exit 1
             fi
             gh release upload "$RELEASE_TAG" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
@@ -310,6 +323,12 @@ jobs:
               --notes "$RELEASE_NOTES" \
               --draft
           fi
+
+          # Read back the exact draft after upload; never freeze mixed artifacts.
+          release_json=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets,targetCommitish)
+          jq -e --arg sha "$TARGET_SHA" --arg name "$APK_NAME" \
+            '.isDraft == true and .targetCommitish == $sha and ([.assets[].name] == [$name])' \
+            <<< "$release_json" >/dev/null || { echo "Draft verification failed; refusing publication." >&2; exit 1; }
 
           gh release edit "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \

@@ -156,23 +156,29 @@ class WorkflowRetriesTest(unittest.TestCase):
         (self.root / 'dist').mkdir()
         (self.root / 'dist/app.apk').write_bytes(b'test-only-apk')
         if initial is not None:
+            initial.setdefault('targetCommitish', self.env['TARGET_SHA'])
             Path(self.env['STATE']).write_text(json.dumps(initial))
         self.fake_gh('''import json, os, pathlib, sys
 p = pathlib.Path(os.environ['STATE'])
 a = sys.argv[1:]
 s = json.loads(p.read_text()) if p.exists() else None
 with open(str(p) + '.calls', 'a') as log: log.write(' '.join(a) + '\\n')
-if a[:2] == ['release', 'view']:
+if a[0] == 'api':
+    if 'matching-refs' in a[1]:
+        print('[]' if not os.environ.get('TAG_SHA') else json.dumps([{'ref': 'refs/tags/' + os.environ['RELEASE_TAG']}]))
+    else:
+        print(os.environ['TAG_SHA'])
+elif a[:2] == ['release', 'view']:
     if s is None: sys.exit(1)
     print(json.dumps(s))
 elif a[:2] == ['release', 'create']:
-    s = {'isDraft': True, 'assets': []}
+    s = {'isDraft': True, 'assets': [], 'targetCommitish': a[a.index('--target') + 1]}
     p.write_text(json.dumps(s))
     if os.environ.get('FAIL_UPLOAD'): sys.exit(1)
     s['assets'] = [{'name': 'app.apk'}]
 elif a[:2] == ['release', 'upload']:
     if os.environ.get('FAIL_UPLOAD'): sys.exit(1)
-    s['assets'] = [{'name': 'app.apk'}]
+    s['assets'] = [x for x in s['assets'] if x['name'] != 'app.apk'] + [{'name': 'app.apk'}]
 elif a[:2] == ['release', 'edit']:
     assert s['assets'], 'must upload before publishing'
     s['isDraft'] = False
@@ -199,6 +205,31 @@ if s is not None: p.write_text(json.dumps(s))
         self.env['FAIL_UPLOAD'] = '1'
         self.assertNotEqual(0, self.publish().returncode)
         self.assertNotIn('release edit', Path(self.env['STATE'] + '.calls').read_text())
+
+    def test_stale_draft_target_is_not_uploaded_or_published(self):
+        self.setup_publication({'isDraft': True, 'targetCommitish': 'b' * 40,
+                                'assets': [{'name': 'old.apk'}]})
+        result = self.publish()
+        self.assertNotEqual(0, result.returncode, result.stdout)
+        calls = Path(self.env['STATE'] + '.calls').read_text()
+        self.assertNotIn('release upload', calls)
+        self.assertNotIn('release edit', calls)
+
+    def test_draft_with_extra_asset_is_not_published(self):
+        self.setup_publication({'isDraft': True, 'assets': [{'name': 'old.apk'}]})
+        result = self.publish()
+        self.assertNotEqual(0, result.returncode, result.stdout)
+        self.assertNotIn('release edit', Path(self.env['STATE'] + '.calls').read_text())
+
+    def test_existing_tag_must_resolve_to_build_commit(self):
+        self.setup_publication()
+        self.env['TAG_SHA'] = 'b' * 40
+        result = self.publish()
+        self.assertNotEqual(0, result.returncode, result.stdout)
+        self.assertNotIn('release create', Path(self.env['STATE'] + '.calls').read_text())
+        self.env['TAG_SHA'] = self.env['TARGET_SHA']
+        result = self.publish()
+        self.assertEqual(0, result.returncode, result.stderr)
 
     def test_published_release_is_immutable_on_rerun(self):
         for assets, expected in (([{'name': 'app.apk'}], 0), ([], 1)):
